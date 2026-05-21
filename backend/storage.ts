@@ -1,7 +1,20 @@
-import { type User, type InsertUser, type PasswordRecord, type InsertPasswordRecord, type HistoryEvent, type InsertHistoryEvent } from "@shared/schema";
+import type * as Schema from "../shared/schema.ts";
+
+type User = Schema.User;
+type InsertUser = Schema.InsertUser;
+type PasswordRecord = Schema.PasswordRecord;
+type InsertPasswordRecord = Schema.InsertPasswordRecord;
+type HistoryEvent = Schema.HistoryEvent;
+type InsertHistoryEvent = Schema.InsertHistoryEvent;
 import bcrypt from "bcryptjs";
+import dns from "node:dns";
 import { MongoClient, ServerApiVersion } from "mongodb";
 import { randomUUID } from "crypto";
+
+// Node 22+ on Windows can fail mongodb+srv SRV DNS lookups (querySrv ECONNREFUSED)
+if (process.platform === "win32") {
+  dns.setServers(["8.8.8.8", "1.1.1.1", "8.8.4.4"]);
+}
 
 export interface IStorage {
   // User methods
@@ -36,6 +49,10 @@ class MongoStorage implements IStorage {
     // mongodb+srv doesn't include db in pathname reliably, allow override via env
     this.dbName = process.env.MONGO_DB_NAME || (url.pathname.replace(/^\//, "") || "recordDB");
     this.ready = this.client.connect().then(() => this.ensureIndexes());
+  }
+
+  async connect(): Promise<void> {
+    await this.ready;
   }
 
   private async ensureIndexes() {
@@ -73,6 +90,7 @@ class MongoStorage implements IStorage {
       password: hashedPassword,
       hasCompletedOnboarding: false,
       createdAt: new Date(),
+      ...(insertUser.profileimage ? { profileimage: insertUser.profileimage } : {}),
     } as unknown as User;
     await db.collection<User>("users").insertOne(user);
     return user;
@@ -199,6 +217,7 @@ class MemStorage implements IStorage {
       password: hashedPassword as any,
       hasCompletedOnboarding: false,
       createdAt: new Date(),
+      ...(insertUser.profileimage ? { profileimage: insertUser.profileimage } : {}),
     } as unknown as User;
     this.users.set(id, user);
     return user;
@@ -299,7 +318,24 @@ class MemStorage implements IStorage {
   }
 }
 
-const mongoUri = process.env.MONGO_URI || "";
-export const storage: IStorage = /^mongodb(\+srv)?:\/\//.test(mongoUri)
-  ? new MongoStorage(mongoUri)
-  : new MemStorage();
+export let storage: IStorage = new MemStorage();
+
+export async function initStorage(): Promise<void> {
+  const mongoUri = process.env.MONGO_URI || "";
+  if (!/^mongodb(\+srv)?:\/\//.test(mongoUri)) {
+    storage = new MemStorage();
+    console.log("[storage] Using in-memory storage (MONGO_URI not set)");
+    return;
+  }
+
+  const mongo = new MongoStorage(mongoUri);
+  try {
+    await mongo.connect();
+    storage = mongo;
+    console.log("[storage] Connected to MongoDB");
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[storage] MongoDB unavailable (${message}), using in-memory storage`);
+    storage = new MemStorage();
+  }
+}

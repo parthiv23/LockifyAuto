@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
+const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || "http://localhost:5000";
+
 export default defineConfig({
   plugins: [
     react(),
@@ -18,23 +20,28 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      "@": path.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path.resolve(import.meta.dirname, "shared"),
-      "@assets": path.resolve(import.meta.dirname, "attached_assets"),
+      "@": path.resolve(import.meta.dirname, "src"),
+      "@shared": path.resolve(import.meta.dirname, "..", "shared"),
+      "@assets": path.resolve(import.meta.dirname, "..", "attached_assets"),
     },
   },
-  root: path.resolve(import.meta.dirname, "client"),
-  publicDir: path.resolve(import.meta.dirname, "client", "public"),
+  root: import.meta.dirname,
+  publicDir: path.resolve(import.meta.dirname, "public"),
   build: {
-    // Emit index.html at dist/ root
     outDir: path.resolve(import.meta.dirname, "dist"),
     emptyOutDir: true,
     assetsDir: "assets",
     copyPublicDir: true,
   },
   server: {
-    host: '0.0.0.0', // Allow access from network
+    host: "0.0.0.0",
     port: 5173,
+    proxy: {
+      "/api": {
+        target: apiProxyTarget,
+        changeOrigin: true,
+      },
+    },
     fs: {
       strict: true,
       deny: ["**/.*"],

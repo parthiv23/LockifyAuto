@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getApiBaseUrl, resolveApiUrl } from "./api-base";
 
 const AUTH_KEY = "lockify-auth";
 
@@ -36,11 +37,12 @@ export async function apiRequest(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(url, {
+  const resolved = resolveApiUrl(url);
+  const res = await fetch(resolved, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "same-origin",
+    credentials: getApiBaseUrl() ? "omit" : "same-origin",
   });
 
   await throwIfResNotOk(res);
@@ -60,8 +62,9 @@ export const getQueryFn: <T>(options: {
       headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const res = await fetch(url, {
-      credentials: "same-origin",
+    const resolved = resolveApiUrl(url);
+    const res = await fetch(resolved, {
+      credentials: getApiBaseUrl() ? "omit" : "same-origin",
       headers,
     });
 

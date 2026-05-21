@@ -1,7 +1,11 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertPasswordRecordSchema, loginSchema, onboardingCompleteSchema, insertHistoryEventSchema } from "@shared/schema";
+import * as schemaModule from "../shared/schema.ts";
+
+// tsx/Node may expose this module as default-only when drizzle-orm is loaded
+const schema = (schemaModule as { default?: typeof schemaModule }).default ?? schemaModule;
+
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
@@ -23,7 +27,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const userData = insertUserSchema.parse(req.body);
+      const userData = schema.insertUserSchema.parse(req.body);
       
       // Check if user already exists
       const existingUser = await storage.getUserByUsername(userData.username);
@@ -37,17 +41,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json({ 
-        user: { id: user.id, username: user.username, hasCompletedOnboarding: user.hasCompletedOnboarding }, 
+        user: {
+          id: user.id,
+          username: user.username,
+          hasCompletedOnboarding: user.hasCompletedOnboarding,
+          ...((user as { profileimage?: string }).profileimage
+            ? { profileimage: (user as { profileimage?: string }).profileimage }
+            : {}),
+        },
         token 
       });
-    } catch (error) {
-      res.status(400).json({ message: "Invalid input data" });
+    } catch (error: any) {
+      if (error?.issues) {
+        return res.status(400).json({ message: "Validation failed", errors: error.issues });
+      }
+      res.status(400).json({ message: error?.message || "Invalid input data" });
     }
   });
 
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const loginData = loginSchema.parse(req.body);
+      const loginData = schema.loginSchema.parse(req.body);
       
       const user = await storage.getUserByUsername(loginData.username);
       if (!user) {
@@ -64,10 +78,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json({ 
-        user: { id: user.id, username: user.username, hasCompletedOnboarding: user.hasCompletedOnboarding }, 
+        user: {
+          id: user.id,
+          username: user.username,
+          hasCompletedOnboarding: user.hasCompletedOnboarding,
+          ...((user as { profileimage?: string }).profileimage
+            ? { profileimage: (user as { profileimage?: string }).profileimage }
+            : {}),
+        },
         token 
       });
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.issues) {
+        return res.status(400).json({ message: "Validation failed", errors: error.issues });
+      }
       res.status(400).json({ message: "Invalid input data" });
     }
   });
@@ -111,7 +135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update onboarding status
   app.put("/api/auth/onboarding", authenticateToken, async (req: any, res) => {
     try {
-      const { hasCompletedOnboarding } = onboardingCompleteSchema.parse(req.body);
+      const { hasCompletedOnboarding } = schema.onboardingCompleteSchema.parse(req.body);
       const updatedUser = await storage.updateUserOnboarding(req.user.userId, hasCompletedOnboarding);
       if (!updatedUser) return res.status(404).json({ message: "User not found" });
       res.json({ hasCompletedOnboarding: updatedUser.hasCompletedOnboarding });
@@ -132,7 +156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/records", authenticateToken, async (req: any, res) => {
     try {
-      const recordData = insertPasswordRecordSchema.parse(req.body);
+      const recordData = schema.insertPasswordRecordSchema.parse(req.body);
       const record = await storage.createPasswordRecord({
         ...recordData,
         userId: req.user.userId
@@ -149,7 +173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/records/:id", authenticateToken, async (req: any, res) => {
     try {
-      const recordData = insertPasswordRecordSchema.partial().parse(req.body);
+      const recordData = schema.insertPasswordRecordSchema.partial().parse(req.body);
       const updatedRecord = await storage.updatePasswordRecord(
         req.params.id, 
         recordData, 
@@ -194,7 +218,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/history", authenticateToken, async (req: any, res) => {
     try {
-      const eventData = insertHistoryEventSchema.parse(req.body);
+      const eventData = schema.insertHistoryEventSchema.parse(req.body);
       const event = await storage.createHistoryEvent({
         ...eventData,
         userId: req.user.userId

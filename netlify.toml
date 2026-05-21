@@ -1,7 +1,7 @@
 [build]
-  command = "npm run build"
-  publish = "dist"
-  
+  command = "npm ci && npm run build -w lockify-frontend"
+  publish = "frontend/dist"
+
 [build.environment]
   NODE_VERSION = "18"
 
@@ -10,14 +10,13 @@
   to = "/index.html"
   status = 200
   force = false
-  
+
 [[headers]]
   for = "/images/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
-    
+
 [[headers]]
   for = "/icons/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
-
