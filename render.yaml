@@ -1,0 +1,17 @@
+# Render blueprint — backend API (deploy from repo root or set each service manually)
+services:
+  - type: web
+    name: lockify-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_DB_NAME
+        value: lumora
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
