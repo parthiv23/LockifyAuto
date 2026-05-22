@@ -64,6 +64,12 @@ If build fails with `esbuild: not found`, Render skipped devDependencies (`NODE_
 
 Do not set `PORT` — Render injects it automatically.
 
+**Critical:** If `MONGO_URI` is missing or wrong, the API used to fall back to **in-memory** storage (register returns 200 but nothing appears in Atlas). In production it now **fails startup** until Mongo connects. After adding env vars, open **Logs** and confirm:
+
+```text
+[storage] Connected to MongoDB
+```
+
 Optional: use the included `render.yaml` blueprint (repo root → **New Blueprint** on Render).
 
 ### Other hosts

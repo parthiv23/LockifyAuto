@@ -335,6 +335,10 @@ export async function initStorage(): Promise<void> {
     console.log("[storage] Connected to MongoDB");
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    if (process.env.NODE_ENV === "production") {
+      console.error(`[storage] MongoDB required in production but connection failed: ${message}`);
+      throw err;
+    }
     console.warn(`[storage] MongoDB unavailable (${message}), using in-memory storage`);
     storage = new MemStorage();
   }
