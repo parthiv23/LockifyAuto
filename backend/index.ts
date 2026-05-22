@@ -1,8 +1,4 @@
-import { config } from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
-
-config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), ".env") });
+import "./load-env.js";
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { registerRoutes } from "./routes";
