@@ -54,7 +54,14 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  await initStorage();
+  try {
+    await initStorage();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[storage] ${message}`);
+    process.exit(1);
+  }
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

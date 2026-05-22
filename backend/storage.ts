@@ -9,7 +9,6 @@ type InsertHistoryEvent = Schema.InsertHistoryEvent;
 import bcrypt from "bcryptjs";
 import dns from "node:dns";
 import { MongoClient, ServerApiVersion } from "mongodb";
-import { randomUUID } from "crypto";
 
 // Node 22+ on Windows can fail mongodb+srv SRV DNS lookups (querySrv ECONNREFUSED)
 if (process.platform === "win32") {
@@ -194,148 +193,23 @@ class MongoStorage implements IStorage {
   }
 }
 
-// In-memory fallback storage (used if no valid Mongo URI is provided)
-class MemStorage implements IStorage {
-  private users: Map<string, User> = new Map();
-  private passwordRecords: Map<string, PasswordRecord> = new Map();
-  private historyEvents: Map<string, HistoryEvent> = new Map();
-
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find((u) => u.username === username);
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const hashedPassword = await bcrypt.hash(insertUser.password, 10);
-    const user: User = { 
-      id, 
-      username: insertUser.username,
-      password: hashedPassword as any,
-      hasCompletedOnboarding: false,
-      createdAt: new Date(),
-      ...(insertUser.profileimage ? { profileimage: insertUser.profileimage } : {}),
-    } as unknown as User;
-    this.users.set(id, user);
-    return user;
-  }
-
-  async getPasswordRecords(userId: string): Promise<PasswordRecord[]> {
-    return Array.from(this.passwordRecords.values()).filter((r) => r.userId === userId);
-  }
-
-  async getPasswordRecord(id: string, userId: string): Promise<PasswordRecord | undefined> {
-    const r = this.passwordRecords.get(id);
-    return r && r.userId === userId ? r : undefined;
-  }
-
-  async createPasswordRecord(record: InsertPasswordRecord & { userId: string }): Promise<PasswordRecord> {
-    const now = new Date();
-    const rec: PasswordRecord = {
-      id: randomUUID(),
-      userId: record.userId,
-      email: record.email,
-      password: record.password,
-      description: record.description || null,
-      userType: (record as any).userType || "gmail",
-      starred: (record as any).starred ?? false,
-      isDeleted: false,
-      deletedAt: null,
-      createdAt: now,
-      updatedAt: now,
-    } as unknown as PasswordRecord;
-    this.passwordRecords.set(rec.id, rec);
-    return rec;
-  }
-
-  async updatePasswordRecord(id: string, record: Partial<InsertPasswordRecord>, userId: string): Promise<PasswordRecord | undefined> {
-    const existing = this.passwordRecords.get(id);
-    if (!existing || existing.userId !== userId) return undefined;
-    const updated: PasswordRecord = { ...(existing as any), ...(record as any), updatedAt: new Date() } as PasswordRecord;
-    this.passwordRecords.set(id, updated);
-    return updated;
-  }
-
-  async deletePasswordRecord(id: string, userId: string): Promise<boolean> {
-    const existing = this.passwordRecords.get(id);
-    if (!existing || existing.userId !== userId) return false;
-    return this.passwordRecords.delete(id);
-  }
-
-  async updateUserOnboarding(userId: string, hasCompletedOnboarding: boolean): Promise<User | undefined> {
-    const user = this.users.get(userId);
-    if (!user) return undefined;
-    const updated: User = { ...(user as any), hasCompletedOnboarding } as User;
-    this.users.set(userId, updated);
-    return updated;
-  }
-
-  async deleteUser(userId: string): Promise<boolean> {
-    const existed = this.users.delete(userId);
-    if (!existed) return false;
-    // Remove all password records and history events for this user
-    for (const [id, record] of Array.from(this.passwordRecords.entries())) {
-      if (record.userId === userId) {
-        this.passwordRecords.delete(id);
-      }
-    }
-    for (const [id, event] of Array.from(this.historyEvents.entries())) {
-      if (event.userId === userId) {
-        this.historyEvents.delete(id);
-      }
-    }
-    return true;
-  }
-
-  async getHistoryEvents(userId: string): Promise<HistoryEvent[]> {
-    return Array.from(this.historyEvents.values())
-      .filter((e) => e.userId === userId)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      .slice(0, 300);
-  }
-
-  async createHistoryEvent(event: InsertHistoryEvent & { userId: string }): Promise<HistoryEvent> {
-    const historyEvent: HistoryEvent = {
-      id: randomUUID(),
-      userId: event.userId,
-      type: event.type,
-      summary: event.summary,
-      details: event.details || null,
-      timestamp: event.timestamp,
-      createdAt: new Date(),
-    } as unknown as HistoryEvent;
-    this.historyEvents.set(historyEvent.id, historyEvent);
-    return historyEvent;
-  }
-
-  async deleteHistoryEvents(userId: string): Promise<number> {
-    const toDelete = Array.from(this.historyEvents.values()).filter((e) => e.userId === userId);
-    toDelete.forEach((e) => this.historyEvents.delete(e.id));
-    return toDelete.length;
-  }
-}
-
-export let storage: IStorage = new MemStorage();
+export let storage!: IStorage;
 
 export async function initStorage(): Promise<void> {
-  const mongoUri = process.env.MONGO_URI || "";
+  const mongoUri = (process.env.MONGO_URI || "").trim();
   if (!/^mongodb(\+srv)?:\/\//.test(mongoUri)) {
-    storage = new MemStorage();
-    console.log("[storage] Using in-memory storage (MONGO_URI not set)");
-    return;
+    throw new Error(
+      "MONGO_URI is required. Set a valid mongodb:// or mongodb+srv:// connection string in backend/.env",
+    );
   }
 
   const mongo = new MongoStorage(mongoUri);
   try {
     await mongo.connect();
     storage = mongo;
-    console.log("[storage] Connected to MongoDB");
+    console.log(`[storage] Connected to MongoDB (database: ${process.env.MONGO_DB_NAME || "lumora"})`);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.warn(`[storage] MongoDB unavailable (${message}), using in-memory storage`);
-    storage = new MemStorage();
+    throw new Error(`MongoDB connection failed: ${message}`);
   }
 }

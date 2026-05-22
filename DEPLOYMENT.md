@@ -64,6 +64,12 @@ If build fails with `esbuild: not found`, Render skipped devDependencies (`NODE_
 
 Do not set `PORT` — Render injects it automatically.
 
+**Critical:** `MONGO_URI` is required. If MongoDB is missing or unreachable, the API **will not start** (no in-memory fallback). After adding env vars, open **Logs** and confirm:
+
+```text
+[storage] Connected to MongoDB
+```
+
 Optional: use the included `render.yaml` blueprint (repo root → **New Blueprint** on Render).
 
 ### Other hosts
