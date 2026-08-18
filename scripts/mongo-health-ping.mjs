@@ -14,20 +14,28 @@ import { MongoClient } from "mongodb";
 
 const TO_EMAIL = process.env.EMAIL_TO || "parthivshah293@gmail.com";
 const PING_HOUR_UTC = 8;
+const PING_MINUTE_UTC = 17;
 const PING_DAYS = [1, 15];
 
 function formatWhen(date) {
-  const ist = new Intl.DateTimeFormat("en-IN", {
+  const dateIst = new Intl.DateTimeFormat("en-IN", {
     timeZone: "Asia/Kolkata",
-    dateStyle: "full",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+  const timeIst = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
     timeStyle: "short",
   }).format(date);
-  const utc = new Intl.DateTimeFormat("en-GB", {
+  const timeUtc = new Intl.DateTimeFormat("en-GB", {
     timeZone: "UTC",
-    dateStyle: "full",
-    timeStyle: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
   }).format(date);
-  return `${ist} IST (${utc} UTC)`;
+  return `${dateIst}, ${timeIst} IST (${timeUtc} UTC)`;
 }
 
 function nextPingAfter(now) {
@@ -36,11 +44,11 @@ function nextPingAfter(now) {
   const candidates = [];
   for (let offset = 0; offset <= 2; offset++) {
     for (const day of PING_DAYS) {
-      candidates.push(Date.UTC(year, month + offset, day, PING_HOUR_UTC, 0, 0));
+      candidates.push(Date.UTC(year, month + offset, day, PING_HOUR_UTC, PING_MINUTE_UTC, 0));
     }
   }
   const next = candidates.find((ms) => ms > now.getTime());
-  return new Date(next ?? Date.UTC(year, month + 3, 1, PING_HOUR_UTC, 0, 0));
+  return new Date(next ?? Date.UTC(year, month + 3, 1, PING_HOUR_UTC, PING_MINUTE_UTC, 0));
 }
 
 async function pingMongo() {

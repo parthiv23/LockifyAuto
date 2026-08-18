@@ -106,7 +106,7 @@ Note your public API URL, e.g. `https://lockify-api.onrender.com` (no trailing s
 
 ### Keep Atlas awake (bi-weekly ping + EmailJS)
 
-A GitHub Action pings Mongo **directly** (not via Render) on the **1st and 15th at 08:00 UTC** (1:30 PM IST) and emails **parthivshah293@gmail.com** with:
+A GitHub Action pings Mongo **directly** (not via Render) on the **1st and 15th at 08:17 UTC** (1:47 PM IST) and emails **parthivshah293@gmail.com** with:
 
 - that a health ping was sent
 - whether Mongo is **awake** or **not awake**
@@ -161,7 +161,11 @@ Repo → **Settings** → **Secrets and variables** → **Actions**:
 
 Allow `0.0.0.0/0` so GitHub-hosted runners can connect. Merge the workflow onto the **default branch**, then **Actions** → **Mongo health ping** → **Run workflow** to test a mail immediately.
 
-Schedule: `.github/workflows/mongo-health-ping.yml` (`0 8 1,15 * *`). GitHub can delay scheduled jobs; the email still reports the planned next 1st/15th slot.
+Schedule: `.github/workflows/mongo-health-ping.yml` (`17 8 1,15 * *`). GitHub can delay scheduled jobs.
+
+Each run **commits** `.github/last-mongo-ping.txt`. That push counts as repo activity, so GitHub will not auto-disable the schedule after 60 idle days. You will see a bot commit twice a month; that is expected.
+
+If branch protection blocks the bot from pushing to `main`, allow GitHub Actions to write, or the 60-day disable can return.
 
 **Zero babysitting:** upgrade Atlas off the Free tier so it never auto-pauses.
 
