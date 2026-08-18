@@ -1,5 +1,6 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { getApiBaseUrl, resolveApiUrl } from "./api-base";
+import { decryptRecords } from "./vault";
 
 const AUTH_KEY = "lockify-auth";
 
@@ -27,12 +28,13 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  options?: { token?: string | null },
 ): Promise<Response> {
   const headers: Record<string, string> = {};
   if (data) {
     headers["Content-Type"] = "application/json";
   }
-  const token = getAuthToken();
+  const token = options?.token !== undefined ? options.token : getAuthToken();
   if (token && url.startsWith("/api/")) {
     headers["Authorization"] = `Bearer ${token}`;
   }
@@ -73,7 +75,11 @@ export const getQueryFn: <T>(options: {
     }
 
     await throwIfResNotOk(res);
-    return await res.json();
+    const data = await res.json();
+    if (url === "/api/records" && Array.isArray(data)) {
+      return decryptRecords(data);
+    }
+    return data;
   };
 
 export const queryClient = new QueryClient({

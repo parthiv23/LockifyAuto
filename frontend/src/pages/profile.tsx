@@ -17,11 +17,15 @@ import { VibrationPreference, Vibration } from "@/lib/vibration";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
 import { useBiometric } from "@/hooks/use-biometric";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { validatePassword } from "@/lib/password-validation";
+import { generateRecoveryKey, wrapCurrentDek } from "@/lib/vault";
+import { RecoveryKeyDialog } from "@/components/recovery-key-dialog";
 
 export default function Profile() {
   const [, setLocation] = useLocation();
   const { theme, setTheme } = useTheme();
-  const { user, logout, updateProfileImage, updateOnboardingStatus } = useAuth();
+  const { user, logout, updateProfileImage, updateOnboardingStatus, changePassword, rotateRecoveryKey } = useAuth();
   const { data: records = [] } = useQuery<PasswordRecord[]>({ queryKey: ["/api/records"] });
   const { toast } = useToast();
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
@@ -33,6 +37,11 @@ export default function Profile() {
   const [deleteAllPassword, setDeleteAllPassword] = useState("");
   const [deleteAccountPassword, setDeleteAccountPassword] = useState("");
   const [isVerifyingPassword, setIsVerifyingPassword] = useState(false);
+  const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [recoveryCurrentPassword, setRecoveryCurrentPassword] = useState("");
+  const [newRecoveryKey, setNewRecoveryKey] = useState<string | null>(null);
+  const [isRotatingRecovery, setIsRotatingRecovery] = useState(false);
   
   // Biometric preferences
   const { biometricEnabled, setBiometricEnabled } = useUserPreferences();
@@ -286,6 +295,85 @@ export default function Profile() {
 
                 {/* Preferences Section */}
                 <div className="mt-4 space-y-3">
+                  <form
+                    className="space-y-2 py-3 px-3 rounded-md border border-border bg-muted/30"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const nextCheck = validatePassword(pwForm.next);
+                      if (!nextCheck.isValid) {
+                        toast({ title: "New password is too weak", variant: "destructive" });
+                        return;
+                      }
+                      if (pwForm.next !== pwForm.confirm) {
+                        toast({ title: "New passwords do not match", variant: "destructive" });
+                        return;
+                      }
+                      setIsChangingPassword(true);
+                      try {
+                        await changePassword({ currentPassword: pwForm.current, newPassword: pwForm.next });
+                        setPwForm({ current: "", next: "", confirm: "" });
+                        toast({ title: "Password updated", description: "Your vault still uses the same encryption key." });
+                      } catch (err: any) {
+                        toast({
+                          title: "Could not change password",
+                          description: err?.message || "Check your current password and try again.",
+                          variant: "destructive",
+                        });
+                      } finally {
+                        setIsChangingPassword(false);
+                      }
+                    }}
+                  >
+                    <div className="text-sm font-medium">Change password</div>
+                    <Label htmlFor="current-password" className="text-xs">Current password</Label>
+                    <Input id="current-password" type="password" value={pwForm.current} onChange={(e) => setPwForm((p) => ({ ...p, current: e.target.value }))} required />
+                    <Label htmlFor="new-password" className="text-xs">New password</Label>
+                    <Input id="new-password" type="password" value={pwForm.next} onChange={(e) => setPwForm((p) => ({ ...p, next: e.target.value }))} required />
+                    <Label htmlFor="confirm-password" className="text-xs">Confirm new password</Label>
+                    <Input id="confirm-password" type="password" value={pwForm.confirm} onChange={(e) => setPwForm((p) => ({ ...p, confirm: e.target.value }))} required />
+                    <Button type="submit" className="w-full" disabled={isChangingPassword}>
+                      {isChangingPassword ? "Updating..." : "Update password"}
+                    </Button>
+                  </form>
+
+                  <form
+                    className="space-y-2 py-3 px-3 rounded-md border border-border bg-muted/30"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      setIsRotatingRecovery(true);
+                      try {
+                        const recoveryKey = generateRecoveryKey();
+                        const wrap = await wrapCurrentDek(recoveryKey);
+                        await rotateRecoveryKey({
+                          currentPassword: recoveryCurrentPassword,
+                          recoveryKey,
+                          recoveryWrappedDek: wrap.wrappedDek,
+                          recoveryWrapSalt: wrap.wrapSalt,
+                        });
+                        setRecoveryCurrentPassword("");
+                        setNewRecoveryKey(recoveryKey);
+                      } catch (err: any) {
+                        toast({
+                          title: "Could not create a new recovery key",
+                          description: err?.message || "Check your password and try again.",
+                          variant: "destructive",
+                        });
+                      } finally {
+                        setIsRotatingRecovery(false);
+                      }
+                    }}
+                  >
+                    <div className="text-sm font-medium">New recovery key</div>
+                    <p className="text-xs text-muted-foreground">
+                      Creates a replacement key for forgot-password. The previous key will stop working.
+                    </p>
+                    <Label htmlFor="recovery-current" className="text-xs">Account password</Label>
+                    <Input id="recovery-current" type="password" value={recoveryCurrentPassword} onChange={(e) => setRecoveryCurrentPassword(e.target.value)} required />
+                    <Button type="submit" variant="outline" className="w-full" disabled={isRotatingRecovery || !recoveryCurrentPassword}>
+                      {isRotatingRecovery ? "Creating..." : "Generate recovery key"}
+                    </Button>
+                  </form>
+
                   {/* Vibration Toggle */}
                   <div className="flex items-center justify-between py-2 px-3 rounded-md border border-border bg-muted/30">
                     <div className="flex items-center gap-3">
@@ -672,6 +760,12 @@ export default function Profile() {
           }
         }}
       />
+      {newRecoveryKey && (
+        <RecoveryKeyDialog
+          recoveryKey={newRecoveryKey}
+          onDone={() => setNewRecoveryKey(null)}
+        />
+      )}
     </div>
   );
 }

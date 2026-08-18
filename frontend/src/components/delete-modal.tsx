@@ -7,6 +7,7 @@ import { PasswordRecord } from "@shared/schema";
 import { AlertTriangle } from "lucide-react";
 import { history } from "@/lib/history";
 import { VibrateIfEnabled } from "@/lib/vibration";
+import { decryptRecord } from "@/lib/vault";
 
 interface DeleteModalProps {
   isOpen: boolean;
@@ -23,7 +24,7 @@ export function DeleteModal({ isOpen, onClose, record }: DeleteModalProps) {
       if (!record) throw new Error("No record to delete");
       const now = new Date().toISOString();
       const res = await apiRequest("PUT", `/api/records/${record.id}`, { isDeleted: true, deletedAt: now });
-      return res.json();
+      return decryptRecord((await res.json()) as PasswordRecord);
     },
     onSuccess: (updated: PasswordRecord) => {
       // Update records cache in place (mark as deleted)

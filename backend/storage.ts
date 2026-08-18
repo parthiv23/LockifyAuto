@@ -16,12 +16,26 @@ if (process.platform === "win32") {
   dns.setServers(["8.8.8.8", "1.1.1.1", "8.8.4.4"]);
 }
 
+export interface UserVaultFields {
+  wrappedDek: string;
+  wrapSalt: string;
+  recoveryWrappedDek: string;
+  recoveryWrapSalt: string;
+  recoveryKeyHash: string;
+}
+
 export interface IStorage {
   // User methods
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUserOnboarding(userId: string, hasCompletedOnboarding: boolean): Promise<User | undefined>;
+  updateUserVault(userId: string, vault: UserVaultFields): Promise<User | undefined>;
+  updateUserPasswordAndWrap(
+    userId: string,
+    passwordHash: string,
+    wrap: { wrappedDek: string; wrapSalt: string },
+  ): Promise<User | undefined>;
   deleteUser(userId: string): Promise<boolean>;
   
   // Password record methods
@@ -132,6 +146,9 @@ class MongoStorage implements IStorage {
     const existing = await db.collection<PasswordRecord>("password_records").findOne({ id, userId });
     if (!existing) return undefined;
     const updated: PasswordRecord = { ...(existing as any), ...(record as any), updatedAt: new Date() } as PasswordRecord;
+    if ((updated as any).isDeleted === false) {
+      (updated as any).deletedAt = null;
+    }
     await db.collection<PasswordRecord>("password_records").updateOne({ id, userId }, { $set: updated });
     return updated;
   }
@@ -142,14 +159,44 @@ class MongoStorage implements IStorage {
     return res.deletedCount === 1;
   }
 
+  private unwrapUser(result: unknown): User | undefined {
+    if (!result) return undefined;
+    const doc = ((result as { value?: User }).value ?? result) as User;
+    return doc.id ? doc : undefined;
+  }
+
   async updateUserOnboarding(userId: string, hasCompletedOnboarding: boolean): Promise<User | undefined> {
     const db = await this.getDb();
-    const res = await db.collection<User>("users").findOneAndUpdate(
+    const result = await db.collection<User>("users").findOneAndUpdate(
       { id: userId },
       { $set: { hasCompletedOnboarding } },
       { returnDocument: "after" },
     );
-    return res.value || undefined;
+    return this.unwrapUser(result);
+  }
+
+  async updateUserVault(userId: string, vault: UserVaultFields): Promise<User | undefined> {
+    const db = await this.getDb();
+    const result = await db.collection<User>("users").findOneAndUpdate(
+      { id: userId },
+      { $set: vault },
+      { returnDocument: "after" },
+    );
+    return this.unwrapUser(result);
+  }
+
+  async updateUserPasswordAndWrap(
+    userId: string,
+    passwordHash: string,
+    wrap: { wrappedDek: string; wrapSalt: string },
+  ): Promise<User | undefined> {
+    const db = await this.getDb();
+    const result = await db.collection<User>("users").findOneAndUpdate(
+      { id: userId },
+      { $set: { password: passwordHash, wrappedDek: wrap.wrappedDek, wrapSalt: wrap.wrapSalt } },
+      { returnDocument: "after" },
+    );
+    return this.unwrapUser(result);
   }
 
   async deleteUser(userId: string): Promise<boolean> {

@@ -22,16 +22,23 @@ export interface HistoryEvent {
   userId?: string;
 }
 
-function getCurrentUserId(): string | null {
+function getAuthSession(): { userId: string; token: string } | null {
   try {
-    const raw = localStorage.getItem('lockify-auth');
+    const raw = localStorage.getItem("lockify-auth");
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    const id = parsed?.user?.id || parsed?.user?.username || null;
-    return typeof id === 'string' && id ? id : null;
+    const userId = parsed?.user?.id || parsed?.user?.username || null;
+    const token = parsed?.token;
+    if (typeof userId !== "string" || !userId) return null;
+    if (typeof token !== "string" || !token) return null;
+    return { userId, token };
   } catch {
     return null;
   }
+}
+
+function getCurrentUserId(): string | null {
+  return getAuthSession()?.userId ?? null;
 }
 
 function dispatchUpdate(): void {
@@ -42,19 +49,25 @@ function dispatchUpdate(): void {
 
 export const history = {
   async add(event: Omit<HistoryEvent, "id" | "timestamp"> & { timestamp?: number }): Promise<HistoryEvent | null> {
-    const userId = getCurrentUserId();
-    if (!userId) return null;
-    
+    // Snapshot before any await so logout can clear the session immediately after.
+    const session = getAuthSession();
+    if (!session) return null;
+
     const timestamp = event.timestamp ?? Date.now();
-    
+
     try {
-      const res = await apiRequest("POST", "/api/history", {
-        userId,
-        type: event.type,
-        summary: event.summary,
-        details: event.details ? JSON.stringify(event.details) : undefined,
-        timestamp: new Date(timestamp).toISOString(),
-      });
+      const res = await apiRequest(
+        "POST",
+        "/api/history",
+        {
+          userId: session.userId,
+          type: event.type,
+          summary: event.summary,
+          details: event.details ? JSON.stringify(event.details) : undefined,
+          timestamp: new Date(timestamp).toISOString(),
+        },
+        { token: session.token },
+      );
 
       if (!res.ok) throw new Error("Failed to save history");
 

@@ -14,6 +14,7 @@ import { PasswordGenerator } from "@/components/password-generator";
 import { Eye, EyeOff, Check, X, Key } from "lucide-react";
 import { history } from "@/lib/history";
 import { VibrateIfEnabled } from "@/lib/vibration";
+import { decryptRecord, encryptPassword } from "@/lib/vault";
 
 interface RecordModalProps {
   isOpen: boolean;
@@ -120,12 +121,14 @@ export function RecordModal({ isOpen, onClose, mode, record, onCreateSuccess }: 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const now = new Date().toISOString();
+      const password = await encryptPassword(data.password);
       const res = await apiRequest("POST", "/api/records", {
         ...data,
+        password,
         createdAt: now,
         updatedAt: now,
       });
-      return res.json();
+      return decryptRecord((await res.json()) as PasswordRecord);
     },
     onSuccess: (created: PasswordRecord) => {
       // Close modal first to avoid accidental double submit from rapid UI interactions
@@ -159,11 +162,13 @@ export function RecordModal({ isOpen, onClose, mode, record, onCreateSuccess }: 
   const updateMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const now = new Date().toISOString();
+      const password = await encryptPassword(data.password);
       const res = await apiRequest("PUT", `/api/records/${record?.id}`, {
         ...data,
+        password,
         updatedAt: now,
       });
-      return res.json();
+      return decryptRecord((await res.json()) as PasswordRecord);
     },
     onSuccess: (updated: PasswordRecord) => {
       // Update cache locally to avoid an extra refetch
