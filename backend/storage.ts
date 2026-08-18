@@ -48,6 +48,7 @@ export interface IStorage {
   getHistoryEvents(userId: string): Promise<HistoryEvent[]>;
   createHistoryEvent(event: InsertHistoryEvent & { userId: string }): Promise<HistoryEvent>;
   deleteHistoryEvents(userId: string): Promise<number>;
+  ping(): Promise<void>;
 }
 
 // Mongo-backed storage
@@ -237,6 +238,11 @@ class MongoStorage implements IStorage {
     const db = await this.getDb();
     const result = await db.collection<HistoryEvent>("history_events").deleteMany({ userId });
     return result.deletedCount;
+  }
+
+  async ping(): Promise<void> {
+    const db = await this.getDb();
+    await db.command({ ping: 1 });
   }
 }
 

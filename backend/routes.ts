@@ -52,6 +52,15 @@ const authenticateToken = (req: any, res: any, next: any) => {
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  app.get("/api/health", async (_req, res) => {
+    try {
+      await storage.ping();
+      res.json({ ok: true, mongo: "ok" });
+    } catch {
+      res.status(503).json({ ok: false, mongo: "unreachable" });
+    }
+  });
+
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {

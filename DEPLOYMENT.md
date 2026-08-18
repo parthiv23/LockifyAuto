@@ -102,6 +102,68 @@ Note your public API URL, e.g. `https://lockify-api.onrender.com` (no trailing s
 
 - Allow network access for your host (or `0.0.0.0/0` with strong credentials).
 - Use the connection string in `MONGO_URI`.
+- **Free (M0) clusters pause after 30 days with zero connections.** Paid Atlas does not. To stay on free, keep a real DB ping happening (see keep-alive below).
+
+### Keep Atlas awake (bi-weekly ping + EmailJS)
+
+A GitHub Action pings Mongo **directly** (not via Render) on the **1st and 15th at 08:00 UTC** (1:30 PM IST) and emails **parthivshah293@gmail.com** with:
+
+- that a health ping was sent
+- whether Mongo is **awake** or **not awake**
+- the **next ping date and time** (IST and UTC)
+
+**1. EmailJS template**
+
+1. Sign up at [https://www.emailjs.com](https://www.emailjs.com).
+2. Add an email service (Gmail is fine).
+3. Create a template. Set **To email** to `{{to_email}}`.
+4. Use an **HTML** template (not plain text). Colors only work in inline `style` attributes.
+
+   Variables:
+   - `{{green}}` = `#16a34a` (always)
+   - `{{red}}` = `#dc2626` (always)
+   - `{{status_color}}` = green when Mongo is awake, red when it is not
+
+   Body example:
+
+```html
+<h2>Lumora Mongo ping</h2>
+<p>Hi {{to_name}},</p>
+<p>A health ping was sent to MongoDB Atlas.</p>
+<p>
+  Status:
+  <strong style="color: {{status_color}};">{{mongo_status}}</strong>
+</p>
+<p>Ping time: {{ping_at}}</p>
+<p>Next ping: {{next_ping_at}}</p>
+<p>{{message}}</p>
+```
+
+   Or use the two colors yourself, e.g. `style="color: {{green}};"` / `style="color: {{red}};"`.
+
+5. Account → **General** → copy Public Key. Enable **Use Private Key** (needed for GitHub Actions) and copy the private key.
+6. Account → **Security** → allow API requests from **non-browser applications**.
+7. Copy **Service ID** and **Template ID**.
+
+**2. GitHub secrets**
+
+Repo → **Settings** → **Secrets and variables** → **Actions**:
+
+| Secret | Value |
+|--------|--------|
+| `MONGO_URI` | same Atlas URI as production |
+| `EMAILJS_SERVICE_ID` | from EmailJS |
+| `EMAILJS_TEMPLATE_ID` | from EmailJS |
+| `EMAILJS_PUBLIC_KEY` | EmailJS public key |
+| `EMAILJS_PRIVATE_KEY` | EmailJS private key |
+
+**3. Atlas Network Access**
+
+Allow `0.0.0.0/0` so GitHub-hosted runners can connect. Merge the workflow onto the **default branch**, then **Actions** → **Mongo health ping** → **Run workflow** to test a mail immediately.
+
+Schedule: `.github/workflows/mongo-health-ping.yml` (`0 8 1,15 * *`). GitHub can delay scheduled jobs; the email still reports the planned next 1st/15th slot.
+
+**Zero babysitting:** upgrade Atlas off the Free tier so it never auto-pauses.
 
 ---
 
@@ -153,6 +215,7 @@ Without `VITE_API_URL`, the built app calls `/api` on the frontend domain and lo
 - [ ] Backend env: `MONGO_URI`, `MONGO_DB_NAME`, `JWT_SECRET` (strong secret)
 - [ ] Frontend env: `VITE_API_URL` = backend origin (HTTPS)
 - [ ] MongoDB allows connections from the backend host
+- [ ] Keep-alive: GitHub secrets `MONGO_URI` + EmailJS keys; test **Mongo health ping** workflow
 - [ ] Test register/login on the live frontend URL
 
 ---
