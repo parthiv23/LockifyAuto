@@ -41,6 +41,39 @@ npm run dev:frontend
 
 Host any Node platform (Render, Railway, Fly.io, etc.).
 
+### Render (Web Service)
+
+| Setting | Value |
+|---------|--------|
+| **Root Directory** | `backend` |
+| **Build Command** | `npm install && npm run build` |
+| **Start Command** | `npm run start` |
+
+If build fails with `esbuild: not found`, Render skipped devDependencies (`NODE_ENV=production` during install). This repo keeps `esbuild` in **dependencies** so the build works. Alternatively use:
+
+`NPM_CONFIG_PRODUCTION=false npm install && npm run build`
+
+**Environment variables** (Render dashboard → Environment):
+
+| Key | Value |
+|-----|--------|
+| `NODE_ENV` | `production` |
+| `MONGO_URI` | your Atlas connection string |
+| `MONGO_DB_NAME` | `lumora` |
+| `JWT_SECRET` | strong random secret |
+
+Do not set `PORT` — Render injects it automatically.
+
+**Critical:** `MONGO_URI` is required. If MongoDB is missing or unreachable, the API **will not start** (no in-memory fallback). After adding env vars, open **Logs** and confirm:
+
+```text
+[storage] Connected to MongoDB
+```
+
+Optional: use the included `render.yaml` blueprint (repo root → **New Blueprint** on Render).
+
+### Other hosts
+
 | Setting | Value |
 |---------|--------|
 | Root directory | `backend` (or monorepo with build command below) |
