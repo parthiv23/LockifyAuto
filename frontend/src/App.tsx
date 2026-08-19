@@ -6,6 +6,7 @@ import Register from "@/pages/register";
 import NotFound from "@/pages/not-found";
 import Profile from "@/pages/profile";
 import About from "@/pages/about";
+import ForgotPassword from "@/pages/forgot-password";
 import BiometricLogin from "@/components/biometric-login";
 import BiometricSetupPrompt from "@/components/biometric-setup-prompt";
 import { queryClient } from "@/lib/queryClient";
@@ -111,6 +112,7 @@ function AppRoutes() {
         <Route path="/trash" component={Dashboard} />
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
+        <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/history" component={Dashboard} />
         <Route path="/profile" component={Profile} />
         <Route path="/about" component={About} />

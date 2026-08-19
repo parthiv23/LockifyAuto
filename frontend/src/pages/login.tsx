@@ -6,12 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, Eye, EyeOff ,Moon, Sun} from "lucide-react";
+import { Eye, EyeOff, Moon, Sun } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 
 import { useAuth } from "@/lib/auth";
-import { AppLogo } from "@/components/app-logo";
 import BiometricAuth from "@/components/biometric-auth";
+import { RecoveryKeyDialog } from "@/components/recovery-key-dialog";
 import { getBiometricToken } from "@/lib/biometric";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
 
@@ -20,6 +20,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showBiometric, setShowBiometric] = useState(false);
+  const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     username: "",
     password: "",
@@ -51,13 +52,13 @@ export default function Login() {
     await new Promise(resolve => setTimeout(resolve, 500));
 
     try {
-      const user = await login({ username: formData.username.trim(), password: formData.password });
+      const session = await login({ username: formData.username.trim(), password: formData.password });
       toast({ title: "Login successful", description: "Welcome back to Lumora!" });
-      
-      // Generate biometric token after successful login
-      await generateTokenAfterLogin(user);
-      
-      // Ensure auth state is picked up app-wide
+      await generateTokenAfterLogin(session.user);
+      if (session.recoveryKey) {
+        setRecoveryKey(session.recoveryKey);
+        return;
+      }
       window.location.replace("/");
     } catch (error) {
       toast({
@@ -72,12 +73,13 @@ export default function Login() {
 
   const handleBiometricSuccess = async () => {
     try {
-      const user = await login({ username: formData.username.trim(), password: formData.password });
+      const session = await login({ username: formData.username.trim(), password: formData.password });
       toast({ title: "Login successful", description: "Welcome back to Lumora!" });
-      
-      // Generate biometric token after successful login
-      await generateTokenAfterLogin(user);
-      
+      await generateTokenAfterLogin(session.user);
+      if (session.recoveryKey) {
+        setRecoveryKey(session.recoveryKey);
+        return;
+      }
       window.location.replace("/");
     } catch (error) {
       toast({
@@ -167,6 +169,12 @@ export default function Login() {
               </div>
             </div>
 
+            <div className="text-right">
+              <Link href="/forgot-password" className="text-sm font-medium text-primary hover:underline">
+                Forgot password?
+              </Link>
+            </div>
+
             <Button 
               type="submit" 
               className="w-full" 
@@ -212,6 +220,12 @@ export default function Login() {
           </div>
         </CardContent>
       </Card>
+      {recoveryKey && (
+        <RecoveryKeyDialog
+          recoveryKey={recoveryKey}
+          onDone={() => window.location.replace("/")}
+        />
+      )}
     </div>
   );
 }

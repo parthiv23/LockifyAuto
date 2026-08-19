@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { decryptRecord } from "@/lib/vault";
 import { Button } from "@/components/ui/button";
 import { PasswordRecord } from "@shared/schema";
 import { ArrowLeft, RefreshCcw, Trash2 } from "lucide-react";
@@ -15,7 +16,7 @@ export default function Trash() {
   const restoreMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await apiRequest("PUT", `/api/records/${id}`, { isDeleted: false, deletedAt: null });
-      return res.json();
+      return decryptRecord((await res.json()) as PasswordRecord);
     },
     onSuccess: (updated: PasswordRecord) => {
       const current = queryClient.getQueryData<PasswordRecord[]>(["/api/records"]) || [];
@@ -58,7 +59,7 @@ export default function Trash() {
                 for (const r of trashed) {
                   try {
                     const res = await apiRequest("PUT", `/api/records/${r.id}`, { isDeleted: false, deletedAt: null });
-                    const updated = (await res.json()) as PasswordRecord;
+                    const updated = await decryptRecord((await res.json()) as PasswordRecord);
                     const idx = current.findIndex((c) => c.id === updated.id);
                     if (idx !== -1) current[idx] = updated;
                   } catch {}

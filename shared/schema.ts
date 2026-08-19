@@ -36,17 +36,62 @@ export const historyEvents = pgTable("history_events", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const accountPasswordSchema = z.string()
+  .min(8, "Password must be at least 8 characters")
+  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+  .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+  .regex(/[0-9]/, "Password must contain at least one number")
+  .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character");
+
+export const vaultBlobSchema = z.string().regex(
+  /^enc:v1:[A-Za-z0-9+/]+={0,2}:[A-Za-z0-9+/]+={0,2}$/,
+  "Invalid encrypted payload",
+);
+
+export const vaultWrapSchema = z.object({
+  wrappedDek: vaultBlobSchema,
+  wrapSalt: z.string().min(8),
+});
+
+export const vaultSetupSchema = vaultWrapSchema.extend({
+  recoveryWrappedDek: vaultBlobSchema,
+  recoveryWrapSalt: z.string().min(8),
+  recoveryKey: z.string().min(16),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: accountPasswordSchema,
+  wrappedDek: vaultBlobSchema,
+  wrapSalt: z.string().min(8),
+});
+
+export const resetPasswordSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  recoveryKey: z.string().min(16, "Recovery key is required"),
+  newPassword: accountPasswordSchema,
+  wrappedDek: vaultBlobSchema,
+  wrapSalt: z.string().min(8),
+});
+
+export const recoveryBundleSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  recoveryKey: z.string().min(16, "Recovery key is required"),
+});
+
+export const rotateRecoverySchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  recoveryWrappedDek: vaultBlobSchema,
+  recoveryWrapSalt: z.string().min(8),
+  recoveryKey: z.string().min(16),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   hasCompletedOnboarding: true,
   createdAt: true,
 }).extend({
-  password: z.string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-    .regex(/[0-9]/, "Password must contain at least one number")
-    .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
+  password: accountPasswordSchema,
   profileimage: z.string().url().optional(),
 });
 
@@ -58,17 +103,12 @@ export const insertPasswordRecordSchema = createInsertSchema(passwordRecords).pi
   userType: true,
 }).extend({
   email: z.string().min(1, "Email/Username is required"),
-  password: z.string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-    .regex(/[0-9]/, "Password must contain at least one number")
-    .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
+  password: z.union([vaultBlobSchema, accountPasswordSchema]),
   description: z.string().max(200, "Description cannot exceed 200 characters").optional(),
   starred: z.boolean().optional(),
   userType: z.string().optional(),
   isDeleted: z.boolean().optional(),
-  deletedAt: z.string().datetime().optional(),
+  deletedAt: z.string().datetime().nullable().optional(),
 });
 
 export const loginSchema = z.object({
@@ -101,3 +141,7 @@ export type LoginData = z.infer<typeof loginSchema>;
 export type OnboardingData = z.infer<typeof onboardingCompleteSchema>;
 export type InsertHistoryEvent = z.infer<typeof insertHistoryEventSchema>;
 export type HistoryEvent = typeof historyEvents.$inferSelect;
+export type VaultSetupData = z.infer<typeof vaultSetupSchema>;
+export type ChangePasswordData = z.infer<typeof changePasswordSchema>;
+export type ResetPasswordData = z.infer<typeof resetPasswordSchema>;
+export type RecoveryBundleData = z.infer<typeof recoveryBundleSchema>;

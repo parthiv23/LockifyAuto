@@ -3,6 +3,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "./queryClient";
 import { history } from "./history";
 import { VibrateIfEnabled } from "./vibration";
+import { clearVault, rewrapDekForNewPassword, unlockVaultWithPassword, type VaultWrap } from "./vault";
+import { provisionNewVault, provisionVaultAndMigrateLegacy } from "./vault-setup";
 import {
   generateBiometricToken,
   authenticateWithBiometricToken,
@@ -16,7 +18,15 @@ interface User {
   username: string;
   hasCompletedOnboarding?: boolean;
   profileimage?: string;
+  vault?: VaultWrap | null;
+  hasRecoveryKey?: boolean;
 }
+
+export type AuthSession = {
+  user: User;
+  token: string;
+  recoveryKey?: string;
+};
 
 type AuthState = {
   user: User;
@@ -110,13 +120,23 @@ export function useAuth() {
   }, [auth?.expiresAt]);
 
   const loginMutation = useMutation({
-    mutationFn: async (credentials: { username: string; password: string }) => {
+    mutationFn: async (credentials: { username: string; password: string }): Promise<AuthSession> => {
       const res = await apiRequest("POST", "/api/auth/login", credentials);
       const body = await res.json() as { user: User; token: string };
       if (!body?.user || !body?.token) {
         throw new Error("Invalid login response from server");
       }
-      return body;
+      let recoveryKey: string | undefined;
+      if (body.user.vault?.wrappedDek && body.user.vault?.wrapSalt) {
+        await unlockVaultWithPassword(body.user.id, credentials.password, body.user.vault);
+      } else {
+        recoveryKey = await provisionVaultAndMigrateLegacy(
+          body.token,
+          body.user.id,
+          credentials.password,
+        );
+      }
+      return { ...body, recoveryKey };
     },
     onSuccess: ({ user, token }) => {
       setLoggedIn(user, token);
@@ -159,7 +179,7 @@ export function useAuth() {
   });
 
   const registerMutation = useMutation({
-    mutationFn: async (userData: { username: string; password: string }) => {
+    mutationFn: async (userData: { username: string; password: string }): Promise<AuthSession> => {
       const randomId = Math.floor(Math.random() * 100) + 1;
       const profileimage = `https://avatar.iran.liara.run/public/${randomId}`;
       const res = await apiRequest("POST", "/api/auth/register", {
@@ -170,7 +190,8 @@ export function useAuth() {
       if (!body?.user || !body?.token) {
         throw new Error("Invalid register response from server");
       }
-      return body;
+      const recoveryKey = await provisionNewVault(body.token, body.user.id, userData.password);
+      return { ...body, recoveryKey };
     },
     onSuccess: ({ user, token }) => {
       setLoggedIn(user, token);
@@ -182,6 +203,11 @@ export function useAuth() {
   });
 
   const logout = () => {
+    // Start the history write while the JWT is still in localStorage.
+    // history.add snapshots userId + token synchronously, so clearing
+    // the session right after does not drop the in-flight POST.
+    void history.add({ type: "logout", summary: "Logged out" }).catch(() => {});
+    clearVault();
     localStorage.removeItem(AUTH_KEY);
     setAuth(null);
     queryClient.clear();
@@ -189,8 +215,6 @@ export function useAuth() {
     try {
       window.dispatchEvent(new CustomEvent("lockify-auth-updated"));
     } catch {}
-    // Fire-and-forget history logging
-    void history.add({ type: "logout", summary: "Logged out" }).catch(() => {});
   };
 
   // Generate biometric token after successful login
@@ -263,6 +287,25 @@ export function useAuth() {
     },
   });
 
+  const changePassword = useMutation({
+    mutationFn: async (input: { currentPassword: string; newPassword: string }) => {
+      const wrap = await rewrapDekForNewPassword(input.newPassword);
+      const res = await apiRequest("PUT", "/api/auth/password", {
+        currentPassword: input.currentPassword,
+        newPassword: input.newPassword,
+        wrappedDek: wrap.wrappedDek,
+        wrapSalt: wrap.wrapSalt,
+      });
+      return res.json();
+    },
+  });
+
+  const rotateRecoveryKey = useMutation({
+    mutationFn: async (input: { currentPassword: string; recoveryKey: string; recoveryWrappedDek: string; recoveryWrapSalt: string }) => {
+      await apiRequest("PUT", "/api/auth/recovery-key", input);
+    },
+  });
+
   return {
     user: auth?.user ?? null,
     isLoading: false,
@@ -271,6 +314,8 @@ export function useAuth() {
     logout,
     updateOnboardingStatus: updateOnboardingStatus.mutateAsync,
     updateProfileImage: updateProfileImageMutation.mutateAsync,
+    changePassword: changePassword.mutateAsync,
+    rotateRecoveryKey: rotateRecoveryKey.mutateAsync,
     isLoginLoading: loginMutation.isPending,
     isRegisterLoading: registerMutation.isPending,
     // Biometric functions

@@ -1,0 +1,56 @@
+# Twice a month: 1st and 15th at 08:17 UTC (1:47 PM IST).
+# After each ping, commits .github/last-mongo-ping.txt so GitHub sees repo
+# activity and does not disable this schedule after 60 idle days.
+#
+# GitHub → Settings → Secrets and variables → Actions:
+#   MONGO_URI
+#   EMAILJS_SERVICE_ID
+#   EMAILJS_TEMPLATE_ID
+#   EMAILJS_PUBLIC_KEY
+#   EMAILJS_PRIVATE_KEY
+#
+# Atlas Network Access must allow 0.0.0.0/0 (or GitHub Actions IPs).
+
+name: Mongo health ping
+
+on:
+  schedule:
+    - cron: "17 8 1,15 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install mongodb driver
+        run: npm install mongodb@6
+      - name: Ping Mongo and email status
+        env:
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          EMAILJS_SERVICE_ID: ${{ secrets.EMAILJS_SERVICE_ID }}
+          EMAILJS_TEMPLATE_ID: ${{ secrets.EMAILJS_TEMPLATE_ID }}
+          EMAILJS_PUBLIC_KEY: ${{ secrets.EMAILJS_PUBLIC_KEY }}
+          EMAILJS_PRIVATE_KEY: ${{ secrets.EMAILJS_PRIVATE_KEY }}
+          EMAIL_TO: parthivshah293@gmail.com
+        run: node scripts/mongo-health-ping.mjs
+      - name: Record ping (keeps GitHub schedule enabled)
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p .github
+          date -u +"Last Mongo ping: %Y-%m-%dT%H:%M:%SZ" > .github/last-mongo-ping.txt
+          git add .github/last-mongo-ping.txt
+          if git diff --staged --quiet; then
+            echo "No stamp change"
+            exit 0
+          fi
+          git commit -m "chore: record Mongo health ping"
+          git push
