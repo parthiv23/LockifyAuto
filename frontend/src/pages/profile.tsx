@@ -174,7 +174,7 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header/Navbar */}
-      <nav className="bg-card border-b border-border sticky top-0 z-50">
+      <nav className="hidden md:block bg-card border-b border-border sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
@@ -522,19 +522,30 @@ export default function Profile() {
                   )}
                 </div>
 
-                {/* Complete Onboarding Button - only show if incomplete */}
-                {!user.hasCompletedOnboarding && (
-                  <div className="mt-4">
-                    <Button 
-                      onClick={() => setIsOnboardingOpen(true)} 
-                      className="w-full" 
+                <div className="mt-4 space-y-2">
+                  <Button
+                    variant="outline"
+                    className="w-full md:hidden"
+                    data-testid="button-start-tour-profile"
+                    onClick={() => {
+                      sessionStorage.setItem("lockify-start-tour", "1");
+                      setLocation("/");
+                    }}
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    Start tour
+                  </Button>
+                  {!user.hasCompletedOnboarding && (
+                    <Button
+                      onClick={() => setIsOnboardingOpen(true)}
+                      className="w-full"
                       data-testid="button-complete-onboarding"
                     >
                       <Play className="w-4 h-4 mr-2" />
                       Complete Onboarding
                     </Button>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 <div className="flex mt-4 gap-2 text-sm justify-center">
                   <Link href="/history" className="w-1/3">

@@ -133,6 +133,7 @@ export default function Dashboard() {
   const toggleStar = (record: PasswordRecord) => toggleStarMutation.mutate(record);
   const isTrashView = location === "/trash";
   const isHistoryView = location === "/history";
+  const isStarredView = location === "/starred";
   const trashedRecords = (records as any[]).filter((r) => r.isDeleted);
   const nonDeletedRecords = (records as any[]).filter((r) => !r.isDeleted);
   const { toast } = useToast();
@@ -163,6 +164,26 @@ export default function Dashboard() {
     window.addEventListener('lockify-history-updated' as any, refresh as any);
     return () => window.removeEventListener('lockify-history-updated' as any, refresh as any);
   }, []);
+
+  useEffect(() => {
+    if (location !== "/" && location !== "/starred") return;
+    if (sessionStorage.getItem("lockify-focus-search") !== "1") return;
+    sessionStorage.removeItem("lockify-focus-search");
+    const t = window.setTimeout(() => {
+      document.getElementById("vault-search-input")?.focus();
+    }, 50);
+    return () => window.clearTimeout(t);
+  }, [location]);
+
+  useEffect(() => {
+    if (location !== "/" && location !== "/starred") return;
+    if (sessionStorage.getItem("lockify-start-tour") !== "1") return;
+    sessionStorage.removeItem("lockify-start-tour");
+    const t = window.setTimeout(() => {
+      if (!(window as any).__lockifyTourRunning) startTour();
+    }, 350);
+    return () => window.clearTimeout(t);
+  }, [location]);
   
   const filteredHistory = (() => {
     const q = historyFilter.trim().toLowerCase();
@@ -273,9 +294,13 @@ export default function Dashboard() {
             intro: "Secure password management solution. This tour covers essential features." 
           },
           { 
-            element: "#tour-avatar", 
+            element: window.matchMedia("(min-width: 768px)").matches
+              ? "#tour-avatar-desktop"
+              : "#tour-avatar-mobile",
             title: "Profile & Account",
-            intro: "Access settings, history, and preferences via your avatar.",
+            intro: window.matchMedia("(min-width: 768px)").matches
+              ? "Access settings, history, and preferences via your avatar."
+              : "Open Profile from the bar at the bottom for settings, history, trash, and theme.",
             position: "bottom"
           },
           { 
@@ -466,7 +491,7 @@ export default function Dashboard() {
       const descOk = !hasDescriptionOnly || (record.description && record.description.trim().length > 0);
 
       // Starred filter
-      const starOk = !starredOnly || Boolean((record as any).starred);
+      const starOk = (isStarredView || starredOnly) ? Boolean((record as any).starred) : true;
 
       // Category filter
       const categoryOk = selectedCategories.length === 0 || selectedCategories.includes((record as any).userType || "gmail");
@@ -546,7 +571,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background relative">
       {/* Navigation Header */}
-      <nav className="bg-card border-b border-border sticky top-0 z-50">
+      <nav className="hidden md:block bg-card border-b border-border sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo and Brand */}
@@ -592,7 +617,7 @@ export default function Dashboard() {
 
               {/* User avatar and username */}
               {user && (
-                <div id="tour-avatar" className="flex items-center gap-2 pr-1 cursor-pointer" onClick={() => setLocation("/profile")}>
+                <div id="tour-avatar-desktop" className="flex items-center gap-2 pr-1 cursor-pointer" onClick={() => setLocation("/profile")}>
                   <div className="relative w-7 h-7">
                     {loading && (
                       <div className="absolute inset-0 flex items-center justify-center bg-muted rounded-full">
@@ -640,7 +665,7 @@ export default function Dashboard() {
           <div className="mb-4">
               
               {/* floating Add record and password generator */}
-              <div className="floating-button-group fixed bottom-4 right-4 xl:right-[13%] flex flex-col xl:gap-3 gap-2 items-end">
+              <div className="floating-button-group fixed bottom-4 right-4 max-md:bottom-24 xl:right-[13%] flex flex-col xl:gap-3 gap-2 items-end">
                 <Button
                   id="tour-password-generator-mobile"
                   onClick={() => setIsPasswordGeneratorOpen(true)}
@@ -675,6 +700,7 @@ export default function Dashboard() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-9 sm:pl-10 text-sm sm:text-base"
+                    id="vault-search-input"
                     data-testid="input-search"
                   />
                 </div>
