@@ -18,6 +18,8 @@ The repo is split into two apps:
 
    Fill in `MONGO_URI`, `MONGO_DB_NAME`, `JWT_SECRET`.
 
+   **Separate dev DB for testing:** copy `backend/.env.development.example` to `backend/.env.development` and set `MONGO_DB_NAME=lumora_dev` (same cluster URI, different database). Production (Render) keeps `MONGO_DB_NAME=lumora`.
+
 2. Install and run both (from repo root):
 
    ```powershell

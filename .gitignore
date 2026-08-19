@@ -8,4 +8,5 @@ vite.config.ts.*
 *.tar.gz
 .env
 backend/.env
+backend/.env.development
 frontend/.env

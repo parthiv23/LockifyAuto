@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import Profile from "@/pages/profile";
 import About from "@/pages/about";
 import ForgotPassword from "@/pages/forgot-password";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import BiometricLogin from "@/components/biometric-login";
 import BiometricSetupPrompt from "@/components/biometric-setup-prompt";
 import { queryClient } from "@/lib/queryClient";
@@ -115,9 +116,11 @@ function AppRoutes() {
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/history" component={Dashboard} />
         <Route path="/profile" component={Profile} />
+        <Route path="/starred" component={Dashboard} />
         <Route path="/about" component={About} />
         <Route>{() => <NotFound />}</Route>
       </Switch>
+      <MobileBottomNav />
       
       {/* Biometric setup prompt */}
       {showBiometricSetup && user && (
