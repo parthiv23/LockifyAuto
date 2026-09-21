@@ -1,0 +1,727 @@
+import { useMemo, useState } from "react";
+import { Link, useLocation } from "wouter";
+import { Button } from "@/components/ui/button";
+import { CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { useAuth } from "@/lib/auth";
+import { useQuery } from "@tanstack/react-query";
+import { PasswordRecord } from "@shared/schema";
+import { Loader2, CircleCheck, CircleX, ArrowLeft, LogOut, Trash, Pencil, UserX, Play, Key, User, Info, Vibrate, Fingerprint } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import AvatarPickerDialog from "@/components/avatar-picker-dialog";
+import { OnboardingGuide } from "@/components/onboarding-guide";
+import { FloatingAppNav } from "@/components/floating-app-nav";
+import { VibrationPreference, Vibration } from "@/lib/vibration";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
+import { useBiometric } from "@/hooks/use-biometric";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { resolveAvatarUrl } from "@/lib/avatars";
+import { validatePassword } from "@/lib/password-validation";
+import { generateRecoveryKey, wrapCurrentDek } from "@/lib/vault";
+import { RecoveryKeyDialog } from "@/components/recovery-key-dialog";
+
+export default function Profile() {
+  const [, setLocation] = useLocation();
+  const { user, logout, updateProfileImage, updateOnboardingStatus, changePassword, rotateRecoveryKey } = useAuth();
+  const { data: records = [] } = useQuery<PasswordRecord[]>({ queryKey: ["/api/records"] });
+  const { toast } = useToast();
+  const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
+  const [isAvatarOpen, setIsAvatarOpen] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [vibrationEnabled, setVibrationEnabled] = useState(() => VibrationPreference.isEnabled());
+  const [deleteAllPassword, setDeleteAllPassword] = useState("");
+  const [deleteAccountPassword, setDeleteAccountPassword] = useState("");
+  const [isVerifyingPassword, setIsVerifyingPassword] = useState(false);
+  const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [recoveryCurrentPassword, setRecoveryCurrentPassword] = useState("");
+  const [newRecoveryKey, setNewRecoveryKey] = useState<string | null>(null);
+  const [isRotatingRecovery, setIsRotatingRecovery] = useState(false);
+  
+  // Biometric preferences
+  const { biometricEnabled, setBiometricEnabled } = useUserPreferences();
+  const { 
+    isSupported: biometricSupported, 
+    hasCredential, 
+    remove: removeBiometricCredential,
+    authenticate,
+    register,
+    isAuthenticating,
+    isRegistering
+  } = useBiometric();
+  const { hasBiometricToken, removeBiometricAuth } = useAuth();
+
+  const stats = useMemo(() => ({
+    total: (records as any[]).filter((r) => !r.isDeleted).length,
+  }), [records]);
+
+  // Biometric management functions
+  const handleSetupBiometric = async () => {
+    if (!user) return;
+    
+    try {
+      const result = await register(user.id, user.username);
+      if (result.success) {
+        toast({
+          title: "Biometric authentication set up",
+          description: "You can now use your fingerprint to log in"
+        });
+      } else {
+        toast({
+          title: "Setup failed",
+          description: result.error || "Failed to set up biometric authentication",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Setup failed",
+        description: "An error occurred while setting up biometric authentication",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleTestBiometric = async () => {
+    if (!user) return;
+    
+    try {
+      const result = await authenticate(user.id, user.username);
+      if (result.success) {
+        toast({
+          title: "Biometric test successful",
+          description: "Your fingerprint authentication is working correctly"
+        });
+      } else {
+        toast({
+          title: "Test failed",
+          description: result.error || "Biometric authentication failed",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Test failed",
+        description: "An error occurred during biometric authentication",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleRemoveBiometric = () => {
+    removeBiometricCredential();
+    removeBiometricAuth();
+    toast({
+      title: "Biometric authentication removed",
+      description: "All biometric data has been cleared from this device"
+    });
+  };
+
+  const verifyPassword = async (password: string): Promise<boolean> => {
+    if (!password) {
+      toast({
+        title: "Password required",
+        description: "Please enter your account password to continue.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    try {
+      setIsVerifyingPassword(true);
+      const res = await apiRequest("POST", "/api/auth/verify-password", { password });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        toast({
+          title: "Incorrect password",
+          description: body?.message || "The password you entered is not correct.",
+          variant: "destructive",
+        });
+        return false;
+      }
+      return true;
+    } catch (e: any) {
+      toast({
+        title: "Failed to verify password",
+        description: e?.message || "",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setIsVerifyingPassword(false);
+    }
+  };
+
+  const avatarUrl = useMemo(
+    () => resolveAvatarUrl(user?.profileimage, user?.id || user?.username || "1"),
+    [user?.id, user?.username, user?.profileimage],
+  );
+
+  // ✅ Image loading state
+  const [loading, setLoading] = useState(true);
+
+  if (!user) {
+    setLocation("/login");
+    return null;
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <FloatingAppNav />
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 md:pt-24">
+        <div className="mb-4 flex items-center gap-2">
+          <ArrowLeft
+            className="w-8 h-8 rounded-md bg-primary/10 p-1 cursor-pointer"
+            onClick={() => setLocation("/")}
+          />
+          <div>
+            <h2 className="text-xl sm:text-3xl font-bold text-foreground">Profile</h2>
+          </div>
+        </div>
+
+        {/* Profile Card */}
+        <div className="flex justify-center">
+          <div className="rounded-xl border bg-card text-card-foreground shadow-sm w-full max-w-2xl">
+            <div className="p-6 flex flex-col items-center">
+              
+              {/* Avatar with loader */}
+              <div className="w-28 h-28 rounded-full shadow-md flex items-center justify-center bg-muted relative">
+                {loading && <Loader2 className="animate-spin w-8 h-8 text-muted-foreground" />}
+                <img
+                  key={avatarUrl}
+                  className={`w-28 h-28 rounded-full border-4 border-border shadow-md absolute ${loading ? "opacity-0" : "opacity-100"}`}
+                  src={avatarUrl}
+                  alt="User Avatar"
+                  onLoad={() => setLoading(false)}
+                  onError={() => setLoading(false)}
+                />
+                <Button size="icon" variant="secondary" className="absolute -bottom-0 -right-0 rounded-full h-8 w-8" onClick={() => setIsAvatarOpen(true)} data-testid="button-edit-avatar">
+                  <Pencil className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <h2 className="mt-2 mb-4 text-2xl font-semibold">{user.username}</h2>
+              
+              <CardContent className="p-0 w-full">
+                <div className="flex py-3 gap-2 text-sm justify-between border-b border-border">
+                  <div className="text-muted-foreground">Username</div>
+                  <div className="font-medium">{user.username}</div>
+                </div>
+                <div className="flex py-3 gap-2 text-sm justify-between border-b border-border">
+                  <div className="text-muted-foreground">Onboarding</div>
+                  <div className="font-medium flex items-center gap-2">
+                    {user.hasCompletedOnboarding ? (
+                      <div className="bg-green-500 bg-opacity-20 rounded-md p-1 px-2 flex items-center gap-1">
+                        <CircleCheck className="w-4 h-4 text-green-600" />
+                        <span className="text-green-600">Completed</span>
+                      </div>
+                    ) : (
+                      <div className="bg-red-500 bg-opacity-20 rounded-md p-1 px-2 flex items-center gap-1">
+                        <CircleX className="w-4 h-4 text-red-600" />
+                        <span className="text-red-600">Not Completed</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex py-3 gap-2 text-sm justify-between border-b border-border">
+                  <div className="text-muted-foreground">Total Records</div>
+                  <div className="font-medium">{stats.total}</div>
+                </div>
+
+
+
+                
+
+                {/* Preferences Section */}
+                <div className="mt-4 space-y-3">
+                  <form
+                    className="space-y-2 py-3 px-3 rounded-md border border-border bg-muted/30"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const nextCheck = validatePassword(pwForm.next);
+                      if (!nextCheck.isValid) {
+                        toast({ title: "New password is too weak", variant: "destructive" });
+                        return;
+                      }
+                      if (pwForm.next !== pwForm.confirm) {
+                        toast({ title: "New passwords do not match", variant: "destructive" });
+                        return;
+                      }
+                      setIsChangingPassword(true);
+                      try {
+                        await changePassword({ currentPassword: pwForm.current, newPassword: pwForm.next });
+                        setPwForm({ current: "", next: "", confirm: "" });
+                        toast({ title: "Password updated", description: "Your vault still uses the same encryption key." });
+                      } catch (err: any) {
+                        toast({
+                          title: "Could not change password",
+                          description: err?.message || "Check your current password and try again.",
+                          variant: "destructive",
+                        });
+                      } finally {
+                        setIsChangingPassword(false);
+                      }
+                    }}
+                  >
+                    <div className="text-sm font-medium">Change password</div>
+                    <Label htmlFor="current-password" className="text-xs">Current password</Label>
+                    <Input id="current-password" type="password" value={pwForm.current} onChange={(e) => setPwForm((p) => ({ ...p, current: e.target.value }))} required />
+                    <Label htmlFor="new-password" className="text-xs">New password</Label>
+                    <Input id="new-password" type="password" value={pwForm.next} onChange={(e) => setPwForm((p) => ({ ...p, next: e.target.value }))} required />
+                    <Label htmlFor="confirm-password" className="text-xs">Confirm new password</Label>
+                    <Input id="confirm-password" type="password" value={pwForm.confirm} onChange={(e) => setPwForm((p) => ({ ...p, confirm: e.target.value }))} required />
+                    <Button type="submit" className="w-full" disabled={isChangingPassword}>
+                      {isChangingPassword ? "Updating..." : "Update password"}
+                    </Button>
+                  </form>
+
+                  <form
+                    className="space-y-2 py-3 px-3 rounded-md border border-border bg-muted/30"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      setIsRotatingRecovery(true);
+                      try {
+                        const recoveryKey = generateRecoveryKey();
+                        const wrap = await wrapCurrentDek(recoveryKey);
+                        await rotateRecoveryKey({
+                          currentPassword: recoveryCurrentPassword,
+                          recoveryKey,
+                          recoveryWrappedDek: wrap.wrappedDek,
+                          recoveryWrapSalt: wrap.wrapSalt,
+                        });
+                        setRecoveryCurrentPassword("");
+                        setNewRecoveryKey(recoveryKey);
+                      } catch (err: any) {
+                        toast({
+                          title: "Could not create a new recovery key",
+                          description: err?.message || "Check your password and try again.",
+                          variant: "destructive",
+                        });
+                      } finally {
+                        setIsRotatingRecovery(false);
+                      }
+                    }}
+                  >
+                    <div className="text-sm font-medium">New recovery key</div>
+                    <p className="text-xs text-muted-foreground">
+                      Creates a replacement key for forgot-password. The previous key will stop working.
+                    </p>
+                    <Label htmlFor="recovery-current" className="text-xs">Account password</Label>
+                    <Input id="recovery-current" type="password" value={recoveryCurrentPassword} onChange={(e) => setRecoveryCurrentPassword(e.target.value)} required />
+                    <Button type="submit" variant="outline" className="w-full" disabled={isRotatingRecovery || !recoveryCurrentPassword}>
+                      {isRotatingRecovery ? "Creating..." : "Generate recovery key"}
+                    </Button>
+                  </form>
+
+                  {/* Vibration Toggle */}
+                  <div className="flex items-center justify-between py-2 px-3 rounded-md border border-border bg-muted/30">
+                    <div className="flex items-center gap-3">
+                      <Vibrate className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <div className="text-sm font-medium">Haptic Feedback</div>
+                        <div className="text-xs text-muted-foreground">
+                          Vibrate on actions
+                        </div>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={vibrationEnabled}
+                      onCheckedChange={(checked) => {
+                        setVibrationEnabled(checked);
+                        VibrationPreference.setEnabled(checked);
+                        if (checked) {
+                          Vibration.short(); // Test vibration
+                        }
+                        toast({
+                          title: checked ? "Vibration enabled" : "Vibration disabled",
+                          description: checked ? "You'll feel haptic feedback on actions" : "Haptic feedback is now disabled",
+                        });
+                      }}
+                      data-testid="switch-vibration"
+                    />
+                  </div>
+
+                  {/* Biometric Authentication Section */}
+                  {biometricSupported && (
+                    <div className="space-y-2">
+                      {/* Main Biometric Toggle */}
+                      <div className="flex items-center justify-between py-2 px-3 rounded-md border border-border bg-muted/30">
+                        <div className="flex items-center gap-3">
+                          <Fingerprint className="w-4 h-4 text-muted-foreground" />
+                          <div>
+                            <div className="text-sm font-medium">Fingerprint Login</div>
+                            <div className="text-xs text-muted-foreground">
+                              {hasCredential(user?.id || '') 
+                                ? "Use fingerprint to sign in" 
+                                : "Set up fingerprint authentication"
+                              }
+                            </div>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={biometricEnabled}
+                          onCheckedChange={(checked) => {
+                            setBiometricEnabled(checked);
+                            if (!checked && hasCredential(user?.id || '')) {
+                              // Remove biometric credential when disabling
+                              handleRemoveBiometric();
+                            } else {
+                              toast({
+                                title: checked ? "Biometric authentication enabled" : "Biometric authentication disabled",
+                                description: checked 
+                                  ? "You can now use fingerprint login on supported devices" 
+                                  : "Fingerprint login is now disabled",
+                              });
+                            }
+                          }}
+                          data-testid="switch-biometric"
+                        />
+                      </div>
+
+                      {/* Biometric Management Actions */}
+                      {biometricEnabled && (
+                        <div className="space-y-2">
+                          {!hasCredential(user?.id || '') ? (
+                            <Button
+                              size="lg"
+                              onClick={handleSetupBiometric}
+                              disabled={isRegistering}
+                              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-200"
+                            >
+                              {isRegistering ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Setting up...
+                                </>
+                              ) : (
+                                <>
+                                  <Fingerprint className="w-4 h-4 mr-2" />
+                                  Set Up Fingerprint Authentication
+                                </>
+                              )}
+                            </Button>
+                          ) : (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleTestBiometric}
+                                disabled={isAuthenticating}
+                                className="flex-1 border-primary/30 hover:border-primary/50 hover:bg-primary/5"
+                              >
+                                {isAuthenticating ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                    Testing...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Key className="w-4 h-4 mr-1" />
+                                    Test
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleRemoveBiometric}
+                                className="flex-1 border-destructive/30 hover:border-destructive/50 hover:bg-destructive/5 text-destructive hover:text-destructive"
+                              >
+                                <UserX className="w-4 h-4 mr-1" />
+                                Remove
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Biometric Status */}
+                      {biometricEnabled && (
+                        <div className="px-3 text-xs text-muted-foreground">
+                          {hasCredential(user?.id || '') ? (
+                            <div className="flex items-center gap-1">
+                              <CircleCheck className="w-3 h-3 text-green-500" />
+                              <span>Biometric authentication is set up</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <CircleX className="w-3 h-3 text-orange-500" />
+                              <span>Set up biometric authentication to enable quick login</span>
+                            </div>
+                          )}
+                          {hasBiometricToken() && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <CircleCheck className="w-3 h-3 text-blue-500" />
+                              <span>Quick login token available</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  <Button
+                    variant="outline"
+                    className="w-full md:hidden"
+                    data-testid="button-start-tour-profile"
+                    onClick={() => {
+                      sessionStorage.setItem("lockify-start-tour", "1");
+                      setLocation("/");
+                    }}
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    Start tour
+                  </Button>
+                  {!user.hasCompletedOnboarding && (
+                    <Button
+                      onClick={() => setIsOnboardingOpen(true)}
+                      className="w-full"
+                      data-testid="button-complete-onboarding"
+                    >
+                      <Play className="w-4 h-4 mr-2" />
+                      Complete Onboarding
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex mt-4 gap-2 text-sm justify-center">
+                  <Link href="/history" className="w-1/3">
+                    <Button 
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2 p-2 w-full"
+                      data-testid="button-profile-go-history"
+                      title="View your activity history"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                        <path d="M3 3v5h5" />
+                        <path d="M3.05 13A9 9 0 1 0 7 4.6L3 8" />
+                        <path d="M12 7v5l4 2" />
+                      </svg>
+                      <span className="inline">History</span>
+                    </Button>
+                  </Link>
+                  <Link href="/trash" className="w-1/3">
+                    <Button 
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2 p-2 w-full" 
+                      data-testid="button-profile-go-trash"
+                      title="Open Trash"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                        <path d="M10 11v6" />
+                        <path d="M14 11v6" />
+                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                      </svg>
+                      <span className="inline">Trash</span>
+                    </Button>
+                  </Link>
+                  <Link href="/about" className="w-1/3">
+                    <Button 
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2 p-2 w-full" 
+                      data-testid="button-profile-go-about"
+                      title="About Lumora"
+                    >
+                      <Info className="w-4 h-4" />
+                      <span className="inline">About</span>
+                    </Button>
+                  </Link>
+                </div>
+
+                {/* Delete All Records */}
+                <div className="mt-2">
+                  <AlertDialog open={isDeleteAllOpen} onOpenChange={setIsDeleteAllOpen}>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="w-full" data-testid="button-delete-all">
+                        <Trash className="w-4 h-4" />
+                        Delete all records
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete all records?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete all your password records.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="space-y-2 py-2">
+                        <div className="text-sm text-muted-foreground">
+                          For your security, please enter your account password to confirm.
+                        </div>
+                        <Input
+                          type="password"
+                          placeholder="Account password"
+                          value={deleteAllPassword}
+                          onChange={(e) => setDeleteAllPassword(e.target.value)}
+                          data-testid="input-delete-all-password"
+                        />
+                      </div>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          disabled={isDeletingAll || isVerifyingPassword}
+                          onClick={async () => {
+                            if (isDeletingAll || isVerifyingPassword) return;
+                            const ok = await verifyPassword(deleteAllPassword);
+                            if (!ok) return;
+                            setIsDeletingAll(true);
+                            try {
+                              const res = await apiRequest("GET", "/api/records");
+                              const list = (await res.json()) as Array<{ id: string }>;
+                              let success = 0;
+                              let failed = 0;
+                              for (const r of list) {
+                                try {
+                                  await apiRequest("DELETE", `/api/records/${r.id}`);
+                                  success += 1;
+                                } catch {
+                                  failed += 1;
+                                }
+                              }
+                              await queryClient.invalidateQueries({ queryKey: ["/api/records"] });
+                              if (failed === 0) {
+                                toast({ title: "All records deleted" });
+                              } else if (success > 0) {
+                                toast({ title: `Deleted ${success} records`, description: `${failed} failed`, variant: "destructive" });
+                              } else {
+                                toast({ title: "Failed to delete records", description: "No records were deleted", variant: "destructive" });
+                              }
+                              setIsDeleteAllOpen(false);
+                              setDeleteAllPassword("");
+                            } catch (e: any) {
+                              toast({ title: "Failed to delete records", description: e?.message || "", variant: "destructive" });
+                            } finally {
+                              setIsDeletingAll(false);
+                            }
+                          }}
+                        >
+                          {isDeletingAll || isVerifyingPassword ? "Please wait..." : "Delete"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+
+                {/* Delete Account */}
+                <div className="mt-2">
+                  <AlertDialog open={isDeleteAccountOpen} onOpenChange={setIsDeleteAccountOpen}>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="w-full" data-testid="button-delete-account">
+                        <UserX className="w-4 h-4" />
+                        Delete account
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete your account and all associated data. This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="space-y-2 py-2">
+                        <div className="text-sm text-muted-foreground">
+                          For your security, please enter your account password to confirm.
+                        </div>
+                        <Input
+                          type="password"
+                          placeholder="Account password"
+                          value={deleteAccountPassword}
+                          onChange={(e) => setDeleteAccountPassword(e.target.value)}
+                          data-testid="input-delete-account-password"
+                        />
+                      </div>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          disabled={isVerifyingPassword}
+                          onClick={async () => {
+                            try {
+                              if (!user?.id) throw new Error("Missing user id");
+                              const ok = await verifyPassword(deleteAccountPassword);
+                              if (!ok) return;
+                              await apiRequest("DELETE", `/api/users/${user.id}`);
+                              toast({ title: "Account deleted" });
+                              setDeleteAccountPassword("");
+                              logout();
+                            } catch (e: any) {
+                              toast({ title: "Failed to delete account", description: e?.message || "", variant: "destructive" });
+                            }
+                          }}
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+
+                <div className="flex mt-2">
+                  <Button variant="destructive" className="flex-1" onClick={logout}>
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </Button>
+                </div>
+              </CardContent>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Dialogs */}
+      <AvatarPickerDialog
+        open={isAvatarOpen}
+        onOpenChange={setIsAvatarOpen}
+        onSelect={async (url) => {
+          try {
+            setLoading(true);
+            const img = new Image();
+            img.onload = () => setLoading(false);
+            img.onerror = () => setLoading(false);
+            img.src = url;
+
+            await updateProfileImage(url);
+            toast({ title: "Avatar updated" });
+          } catch (e: any) {
+            toast({ title: "Failed to update avatar", description: e?.message || "", variant: "destructive" });
+          }
+        }}
+      />
+      
+      <OnboardingGuide
+        isOpen={isOnboardingOpen}
+        onComplete={async () => {
+          setIsOnboardingOpen(false);
+          try {
+            await updateOnboardingStatus(true);
+            toast({ title: "Onboarding completed!" });
+          } catch (e: any) {
+            toast({
+              title: "Failed to complete onboarding",
+              description: e?.message || "",
+              variant: "destructive",
+            });
+          }
+        }}
+      />
+      {newRecoveryKey && (
+        <RecoveryKeyDialog
+          recoveryKey={newRecoveryKey}
+          onDone={() => setNewRecoveryKey(null)}
+        />
+      )}
+    </div>
+  );
+}

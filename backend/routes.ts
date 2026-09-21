@@ -1,0 +1,407 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import * as schemaModule from "../shared/schema.ts";
+
+// tsx/Node may expose this module as default-only when drizzle-orm is loaded
+const schema = (schemaModule as { default?: typeof schemaModule }).default ?? schemaModule;
+
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+
+type AuthUserDoc = {
+  id: string;
+  username: string;
+  password: string;
+  hasCompletedOnboarding: boolean;
+  profileimage?: string;
+  wrappedDek?: string;
+  wrapSalt?: string;
+  recoveryWrappedDek?: string;
+  recoveryWrapSalt?: string;
+  recoveryKeyHash?: string;
+};
+
+function publicUser(user: AuthUserDoc) {
+  return {
+    id: user.id,
+    username: user.username,
+    hasCompletedOnboarding: user.hasCompletedOnboarding,
+    ...(user.profileimage ? { profileimage: user.profileimage } : {}),
+    hasRecoveryKey: Boolean(user.recoveryKeyHash),
+    vault: user.wrappedDek && user.wrapSalt
+      ? { wrappedDek: user.wrappedDek, wrapSalt: user.wrapSalt }
+      : null,
+  };
+}
+
+const INVALID_RECOVERY = { message: "Invalid username or recovery key" };
+
+// JWT auth middleware
+const authenticateToken = (req: any, res: any, next: any) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'Access token required' });
+  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+    if (err) return res.status(403).json({ message: 'Invalid or expired token' });
+    req.user = user;
+    next();
+  });
+};
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  app.get("/api/health", async (_req, res) => {
+    try {
+      await storage.ping();
+      res.json({ ok: true, mongo: "ok" });
+    } catch {
+      res.status(503).json({ ok: false, mongo: "unreachable" });
+    }
+  });
+
+  // Auth routes
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const userData = schema.insertUserSchema.parse(req.body);
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByUsername(userData.username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+
+      const user = await storage.createUser(userData);
+      const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, {
+        expiresIn: '24h'
+      });
+
+      res.json({
+        user: publicUser(user as AuthUserDoc),
+        token,
+      });
+    } catch (error: any) {
+      if (error?.issues) {
+        return res.status(400).json({ message: "Validation failed", errors: error.issues });
+      }
+      res.status(400).json({ message: error?.message || "Invalid input data" });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const loginData = schema.loginSchema.parse(req.body);
+      
+      const user = await storage.getUserByUsername(loginData.username);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      const isPasswordValid = await bcrypt.compare(loginData.password, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, {
+        expiresIn: '24h'
+      });
+
+      res.json({
+        user: publicUser(user as AuthUserDoc),
+        token,
+      });
+    } catch (error: any) {
+      if (error?.issues) {
+        return res.status(400).json({ message: "Validation failed", errors: error.issues });
+      }
+      res.status(400).json({ message: "Invalid input data" });
+    }
+  });
+
+  // Verify current password for sensitive actions (e.g., delete account / records)
+  app.post("/api/auth/verify-password", authenticateToken, async (req: any, res) => {
+    try {
+      const { password } = req.body as { password?: string };
+      if (!password || typeof password !== "string") {
+        return res.status(400).json({ message: "Password is required" });
+      }
+
+      const user = await storage.getUser(req.user.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: "Incorrect password" });
+      }
+
+      return res.json({ ok: true });
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to verify password" });
+    }
+  });
+
+  app.get("/api/auth/me", authenticateToken, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      res.json(publicUser(user as AuthUserDoc));
+    } catch (error) {
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+
+
+  // Update onboarding status
+  app.put("/api/auth/onboarding", authenticateToken, async (req: any, res) => {
+    try {
+      const { hasCompletedOnboarding } = schema.onboardingCompleteSchema.parse(req.body);
+      const updatedUser = await storage.updateUserOnboarding(req.user.userId, hasCompletedOnboarding);
+      if (!updatedUser) return res.status(404).json({ message: "User not found" });
+      res.json({ hasCompletedOnboarding: updatedUser.hasCompletedOnboarding });
+    } catch (error) {
+      res.status(400).json({ message: "Invalid input data" });
+    }
+  });
+
+  app.put("/api/auth/vault", authenticateToken, async (req: any, res) => {
+    try {
+      const data = schema.vaultSetupSchema.parse(req.body);
+      const recoveryKeyHash = await bcrypt.hash(data.recoveryKey, 10);
+      const updated = await storage.updateUserVault(req.user.userId, {
+        wrappedDek: data.wrappedDek,
+        wrapSalt: data.wrapSalt,
+        recoveryWrappedDek: data.recoveryWrappedDek,
+        recoveryWrapSalt: data.recoveryWrapSalt,
+        recoveryKeyHash,
+      });
+      if (!updated) return res.status(404).json({ message: "User not found" });
+      res.json(publicUser(updated as AuthUserDoc));
+    } catch (error: any) {
+      if (error?.issues) {
+        return res.status(400).json({ message: "Validation failed", errors: error.issues });
+      }
+      res.status(400).json({ message: error?.message || "Invalid input data" });
+    }
+  });
+
+  app.put("/api/auth/recovery-key", authenticateToken, async (req: any, res) => {
+    try {
+      const data = schema.rotateRecoverySchema.parse(req.body);
+      const user = await storage.getUser(req.user.userId) as AuthUserDoc | undefined;
+      if (!user) return res.status(404).json({ message: "User not found" });
+      if (!user.wrappedDek || !user.wrapSalt) {
+        return res.status(400).json({ message: "Vault is not set up yet" });
+      }
+      const ok = await bcrypt.compare(data.currentPassword, user.password);
+      if (!ok) return res.status(401).json({ message: "Incorrect password" });
+      const recoveryKeyHash = await bcrypt.hash(data.recoveryKey, 10);
+      const updated = await storage.updateUserVault(req.user.userId, {
+        wrappedDek: user.wrappedDek,
+        wrapSalt: user.wrapSalt,
+        recoveryWrappedDek: data.recoveryWrappedDek,
+        recoveryWrapSalt: data.recoveryWrapSalt,
+        recoveryKeyHash,
+      });
+      if (!updated) return res.status(404).json({ message: "User not found" });
+      res.json({ ok: true });
+    } catch (error: any) {
+      if (error?.issues) {
+        return res.status(400).json({ message: "Validation failed", errors: error.issues });
+      }
+      res.status(400).json({ message: error?.message || "Invalid input data" });
+    }
+  });
+
+  app.put("/api/auth/password", authenticateToken, async (req: any, res) => {
+    try {
+      const data = schema.changePasswordSchema.parse(req.body);
+      const user = await storage.getUser(req.user.userId) as AuthUserDoc | undefined;
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const ok = await bcrypt.compare(data.currentPassword, user.password);
+      if (!ok) return res.status(401).json({ message: "Incorrect password" });
+      const passwordHash = await bcrypt.hash(data.newPassword, 10);
+      const updated = await storage.updateUserPasswordAndWrap(req.user.userId, passwordHash, {
+        wrappedDek: data.wrappedDek,
+        wrapSalt: data.wrapSalt,
+      });
+      if (!updated) return res.status(404).json({ message: "User not found" });
+      res.json(publicUser(updated as AuthUserDoc));
+    } catch (error: any) {
+      if (error?.issues) {
+        return res.status(400).json({ message: "Validation failed", errors: error.issues });
+      }
+      res.status(400).json({ message: error?.message || "Invalid input data" });
+    }
+  });
+
+  app.post("/api/auth/recovery-bundle", async (req, res) => {
+    try {
+      const data = schema.recoveryBundleSchema.parse(req.body);
+      const user = await storage.getUserByUsername(data.username) as AuthUserDoc | undefined;
+      if (!user?.recoveryKeyHash || !user.recoveryWrappedDek || !user.recoveryWrapSalt) {
+        return res.status(401).json(INVALID_RECOVERY);
+      }
+      const ok = await bcrypt.compare(data.recoveryKey, user.recoveryKeyHash);
+      if (!ok) return res.status(401).json(INVALID_RECOVERY);
+      res.json({
+        userId: user.id,
+        recoveryWrappedDek: user.recoveryWrappedDek,
+        recoveryWrapSalt: user.recoveryWrapSalt,
+      });
+    } catch (error: any) {
+      if (error?.issues) {
+        return res.status(400).json({ message: "Validation failed", errors: error.issues });
+      }
+      res.status(400).json({ message: "Invalid input data" });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const data = schema.resetPasswordSchema.parse(req.body);
+      const user = await storage.getUserByUsername(data.username) as AuthUserDoc | undefined;
+      if (!user?.recoveryKeyHash) {
+        return res.status(401).json(INVALID_RECOVERY);
+      }
+      const ok = await bcrypt.compare(data.recoveryKey, user.recoveryKeyHash);
+      if (!ok) return res.status(401).json(INVALID_RECOVERY);
+      const passwordHash = await bcrypt.hash(data.newPassword, 10);
+      const updated = await storage.updateUserPasswordAndWrap(user.id, passwordHash, {
+        wrappedDek: data.wrappedDek,
+        wrapSalt: data.wrapSalt,
+      });
+      if (!updated) return res.status(404).json({ message: "User not found" });
+      res.json({ ok: true });
+    } catch (error: any) {
+      if (error?.issues) {
+        return res.status(400).json({ message: "Validation failed", errors: error.issues });
+      }
+      res.status(400).json({ message: error?.message || "Invalid input data" });
+    }
+  });
+
+  // Password records routes
+  app.get("/api/records", authenticateToken, async (req: any, res) => {
+    try {
+      const records = await storage.getPasswordRecords(req.user.userId);
+      res.json(records);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch records" });
+    }
+  });
+
+  app.post("/api/records", authenticateToken, async (req: any, res) => {
+    try {
+      const recordData = schema.insertPasswordRecordSchema.parse(req.body);
+      const record = await storage.createPasswordRecord({
+        ...recordData,
+        userId: req.user.userId
+      });
+      res.status(201).json(record);
+    } catch (error: any) {
+      if (error.issues) {
+        res.status(400).json({ message: "Validation failed", errors: error.issues });
+      } else {
+        res.status(400).json({ message: "Invalid input data" });
+      }
+    }
+  });
+
+  app.put("/api/records/:id", authenticateToken, async (req: any, res) => {
+    try {
+      const recordData = schema.insertPasswordRecordSchema.partial().parse(req.body);
+      const updatedRecord = await storage.updatePasswordRecord(
+        req.params.id, 
+        recordData, 
+        req.user.userId
+      );
+      
+      if (!updatedRecord) {
+        return res.status(404).json({ message: "Record not found" });
+      }
+
+      res.json(updatedRecord);
+    } catch (error: any) {
+      if (error.issues) {
+        res.status(400).json({ message: "Validation failed", errors: error.issues });
+      } else {
+        res.status(400).json({ message: "Invalid input data" });
+      }
+    }
+  });
+
+  app.delete("/api/records/:id", authenticateToken, async (req: any, res) => {
+    try {
+      const deleted = await storage.deletePasswordRecord(req.params.id, req.user.userId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Record not found" });
+      }
+      res.json({ message: "Record deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete record" });
+    }
+  });
+
+  // History routes
+  app.get("/api/history", authenticateToken, async (req: any, res) => {
+    try {
+      const events = await storage.getHistoryEvents(req.user.userId);
+      res.json(events);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch history" });
+    }
+  });
+
+  app.post("/api/history", authenticateToken, async (req: any, res) => {
+    try {
+      const eventData = schema.insertHistoryEventSchema.parse(req.body);
+      const event = await storage.createHistoryEvent({
+        ...eventData,
+        userId: req.user.userId
+      });
+      res.status(201).json(event);
+    } catch (error: any) {
+      if (error.issues) {
+        res.status(400).json({ message: "Validation failed", errors: error.issues });
+      } else {
+        res.status(400).json({ message: "Invalid input data" });
+      }
+    }
+  });
+
+  app.delete("/api/history", authenticateToken, async (req: any, res) => {
+    try {
+      const count = await storage.deleteHistoryEvents(req.user.userId);
+      res.json({ message: `Deleted ${count} history events` });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete history" });
+    }
+  });
+
+  // Delete user account and all associated data
+  app.delete("/api/users/:id", authenticateToken, async (req: any, res) => {
+    try {
+      const requestedUserId = req.params.id;
+      // Users may only delete their own account
+      if (requestedUserId !== req.user.userId) {
+        return res.status(403).json({ message: "You can only delete your own account" });
+      }
+
+      const success = await storage.deleteUser(requestedUserId);
+      if (!success) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json({ message: "Account and associated data deleted" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete account" });
+    }
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}

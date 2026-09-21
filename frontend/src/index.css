@@ -1,0 +1,723 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(76 48% 95%);
+  --foreground: hsl(164 80% 12%);
+  --card: hsl(76 50% 98%);
+  --card-foreground: hsl(164 80% 12%);
+  --popover: hsl(76 50% 98%);
+  --popover-foreground: hsl(164 80% 12%);
+  --primary: hsl(162 80% 15%);
+  --primary-foreground: hsl(76 78% 72%);
+  --secondary: hsl(92 57% 84%);
+  --secondary-foreground: hsl(164 80% 12%);
+  --muted: hsl(85 30% 89%);
+  --muted-foreground: hsl(155 24% 36%);
+  --accent: hsl(76 78% 72%);
+  --accent-foreground: hsl(164 80% 12%);
+  --destructive: hsl(0 72% 46%);
+  --destructive-foreground: hsl(76 48% 95%);
+  --border: hsl(154 27% 78%);
+  --input: hsl(154 27% 78%);
+  --ring: hsl(162 80% 15%);
+  --chart-1: hsl(162 80% 15%);
+  --chart-2: hsl(76 78% 52%);
+  --chart-3: hsl(92 45% 42%);
+  --chart-4: hsl(147 50% 36%);
+  --chart-5: hsl(164 40% 28%);
+  --sidebar: hsl(76 50% 98%);
+  --sidebar-background: hsl(76 50% 98%);
+  --sidebar-foreground: hsl(164 80% 12%);
+  --sidebar-primary: hsl(162 80% 15%);
+  --sidebar-primary-foreground: hsl(76 78% 72%);
+  --sidebar-accent: hsl(92 57% 84%);
+  --sidebar-accent-foreground: hsl(164 80% 12%);
+  --sidebar-border: hsl(154 27% 78%);
+  --sidebar-ring: hsl(162 80% 15%);
+  --font-sans: 'DM Sans', sans-serif;
+  --font-serif: 'Instrument Serif', serif;
+  --font-mono: 'DM Mono', monospace;
+  --radius: 0.65rem;
+  --shadow-2xs: 0 1px 0 hsl(162 80% 15% / 0.04);
+  --shadow-xs: 0 1px 2px hsl(162 80% 15% / 0.06);
+  --shadow-sm: 0 1px 2px hsl(162 80% 15% / 0.06), 0 1px 3px hsl(162 80% 15% / 0.04);
+  --shadow: 0 8px 24px hsl(162 80% 15% / 0.08);
+  --shadow-md: 0 12px 32px hsl(162 80% 15% / 0.10);
+  --shadow-lg: 0 18px 55px hsl(162 80% 15% / 0.12);
+  --shadow-xl: 0 24px 60px hsl(162 80% 15% / 0.14);
+  --shadow-2xl: 0 32px 80px hsl(162 80% 15% / 0.18);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+}
+
+.dark {
+  --background: hsl(164 80% 9%);
+  --foreground: hsl(76 48% 95%);
+  --card: hsl(163 48% 13%);
+  --card-foreground: hsl(76 48% 95%);
+  --popover: hsl(163 48% 13%);
+  --popover-foreground: hsl(76 48% 95%);
+  --primary: hsl(76 78% 72%);
+  --primary-foreground: hsl(164 80% 9%);
+  --secondary: hsl(158 30% 23%);
+  --secondary-foreground: hsl(76 48% 95%);
+  --muted: hsl(158 27% 20%);
+  --muted-foreground: hsl(92 30% 72%);
+  --accent: hsl(92 57% 84%);
+  --accent-foreground: hsl(164 80% 9%);
+  --destructive: hsl(0 62% 50%);
+  --destructive-foreground: hsl(76 48% 95%);
+  --border: hsl(158 30% 27%);
+  --input: hsl(158 30% 27%);
+  --ring: hsl(76 78% 72%);
+  --chart-1: hsl(76 78% 72%);
+  --chart-2: hsl(92 45% 52%);
+  --chart-3: hsl(147 50% 46%);
+  --chart-4: hsl(162 40% 40%);
+  --chart-5: hsl(164 50% 60%);
+  --sidebar: hsl(164 80% 8%);
+  --sidebar-background: hsl(164 80% 8%);
+  --sidebar-foreground: hsl(76 48% 95%);
+  --sidebar-primary: hsl(76 78% 72%);
+  --sidebar-primary-foreground: hsl(164 80% 9%);
+  --sidebar-accent: hsl(158 30% 23%);
+  --sidebar-accent-foreground: hsl(76 48% 95%);
+  --sidebar-border: hsl(158 30% 27%);
+  --sidebar-ring: hsl(76 78% 72%);
+  --font-sans: 'DM Sans', sans-serif;
+  --font-serif: 'Instrument Serif', serif;
+  --font-mono: 'DM Mono', monospace;
+  --radius: 0.65rem;
+  --shadow-2xs: 0 1px 0 hsl(0 0% 0% / 0.2);
+  --shadow-xs: 0 1px 2px hsl(0 0% 0% / 0.28);
+  --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.28);
+  --shadow: 0 8px 24px hsl(0 0% 0% / 0.35);
+  --shadow-md: 0 12px 32px hsl(0 0% 0% / 0.4);
+  --shadow-lg: 0 18px 55px hsl(0 0% 0% / 0.45);
+  --shadow-xl: 0 24px 60px hsl(0 0% 0% / 0.5);
+  --shadow-2xl: 0 32px 80px hsl(0 0% 0% / 0.55);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Mobile optimizations */
+  @media (max-width: 640px) {
+    .modal-content {
+      @apply w-[95vw] max-w-none;
+    }
+    
+    .password-card {
+      @apply p-2.5;
+    }
+
+    .dashboard-header {
+      @apply px-4 py-6;
+    }
+
+    .search-sort-container {
+      @apply flex-col gap-3;
+    }
+
+    .mobile-button-group {
+      @apply flex flex-col gap-2;
+    }
+
+    .mobile-button-group .btn {
+      @apply w-full justify-center;
+    }
+  }
+
+  /* Enhanced mobile compactness */
+  @media (max-width: 480px) {
+    .password-card {
+      @apply p-2 space-y-2;
+    }
+    
+    .password-card .space-y-3 > * + * {
+      @apply mt-2;
+    }
+    
+    .password-card .space-y-1 > * + * {
+      @apply mt-1;
+    }
+  }
+
+  /* Consistent button sizes and icon spacing */
+  .btn-icon {
+    @apply w-5 h-5;
+  }
+
+  .btn-icon-sm {
+    @apply w-4 h-4;
+  }
+
+  /* Consistent font weights */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold;
+  }
+}
+
+/* width */
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  background: #ffffff00; 
+}
+ 
+::selection {
+  background: #cef17b;
+  color: #084734;
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--foreground) 28%, transparent);
+  border-radius: 999px;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--foreground) 42%, transparent);
+}
+
+.min-h-screen.bg-background {
+  isolation: isolate;
+  background-color: var(--background);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--foreground) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--foreground) 6%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px, 32px 32px;
+}
+
+.min-h-screen.bg-background > *:not(.floating-app-nav) {
+  position: relative;
+  z-index: 1;
+}
+
+.min-h-screen.bg-background::before,
+.min-h-screen.bg-background::after {
+  content: "";
+  position: fixed;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 50%;
+  filter: blur(28px);
+  will-change: transform;
+}
+
+.min-h-screen.bg-background::before {
+  width: min(40vw, 24rem);
+  height: min(40vw, 24rem);
+  top: -6%;
+  right: -4%;
+  background: radial-gradient(circle, color-mix(in srgb, #cef17b 70%, transparent) 0%, transparent 72%);
+  animation: lumora-blob-a 18s ease-in-out infinite;
+}
+
+.min-h-screen.bg-background::after {
+  width: min(44vw, 26rem);
+  height: min(44vw, 26rem);
+  bottom: -10%;
+  left: -6%;
+  background: radial-gradient(circle, color-mix(in srgb, #9dcc7a 42%, transparent) 0%, transparent 74%);
+  animation: lumora-blob-b 22s ease-in-out infinite;
+}
+
+.dark .min-h-screen.bg-background::before {
+  background: radial-gradient(circle, color-mix(in srgb, #cef17b 34%, transparent) 0%, transparent 72%);
+}
+
+.dark .min-h-screen.bg-background::after {
+  background: radial-gradient(circle, color-mix(in srgb, #4b8b69 28%, transparent) 0%, transparent 74%);
+}
+
+@keyframes lumora-blob-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  40% { transform: translate3d(-10%, 12%, 0) scale(1.12); }
+  70% { transform: translate3d(8%, -8%, 0) scale(0.92); }
+}
+
+@keyframes lumora-blob-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  35% { transform: translate3d(12%, -10%, 0) scale(1.08); }
+  65% { transform: translate3d(-8%, 14%, 0) scale(0.9); }
+}
+
+.min-h-screen.bg-background > .floating-app-nav {
+  z-index: 50;
+}
+
+.floating-app-nav {
+  overflow: hidden;
+  width: min(calc(100% - 2rem), 80rem);
+  height: 3.5rem;
+  padding: 0.4rem 0.85rem;
+  justify-content: space-between;
+  background: color-mix(in srgb, var(--card) 62%, transparent);
+  backdrop-filter: saturate(1.2) blur(18px);
+  -webkit-backdrop-filter: saturate(1.2) blur(18px);
+  border-color: color-mix(in srgb, var(--foreground) 12%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 45%, transparent),
+    0 14px 40px color-mix(in srgb, var(--primary) 10%, transparent);
+  transform: translate3d(-50%, 0, 0);
+}
+
+.floating-app-nav h1 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: -0.04em;
+}
+
+.search-sort-container {
+  position: sticky;
+  top: 0.5rem;
+  z-index: 40;
+  padding: 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--background) 72%, transparent);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+.search-sort-container input,
+.search-sort-container button {
+  border-radius: 999px;
+}
+
+@media (min-width: 768px) {
+  .search-sort-container {
+    top: 5.35rem;
+    padding: 0.4rem 0.45rem;
+  }
+}
+
+.record-glass-card,
+[data-testid^="card-record-"] {
+  background: color-mix(in srgb, #ffffff 26%, transparent) !important;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border-color: color-mix(in srgb, var(--foreground) 12%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 55%, transparent),
+    0 18px 40px color-mix(in srgb, var(--primary) 8%, transparent);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.dark .record-glass-card,
+.dark [data-testid^="card-record-"] {
+  background: color-mix(in srgb, #ffffff 6%, transparent) !important;
+  border-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #cef17b 14%, transparent),
+    0 18px 40px color-mix(in srgb, #000 28%, transparent);
+}
+
+.record-glass-card:hover,
+[data-testid^="card-record-"]:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--primary) 38%, var(--border));
+  background: color-mix(in srgb, #ffffff 38%, transparent) !important;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 65%, transparent),
+    0 22px 48px color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.dark .record-glass-card:hover,
+.dark [data-testid^="card-record-"]:hover {
+  background: color-mix(in srgb, #ffffff 10%, transparent) !important;
+}
+
+.record-glass-card .bg-muted {
+  background: color-mix(in srgb, var(--foreground) 7%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-app-nav,
+  .search-sort-container,
+  .scroll-to-top-btn {
+    transition: none;
+  }
+
+  .min-h-screen.bg-background::before,
+  .min-h-screen.bg-background::after {
+    animation: none;
+  }
+
+  .record-glass-card,
+  [data-testid^="card-record-"] {
+    transition: none;
+  }
+
+  .record-glass-card:hover,
+  [data-testid^="card-record-"]:hover {
+    transform: none;
+  }
+}
+
+.calender--wrapper{
+  thead,tbody{
+    tr{
+      justify-content: center;
+    }
+  }
+}
+
+/* Intro.js theming to match project variables (force override) */
+.introjs-overlay {
+  background: rgb(0 0 0 / 45%) !important;
+}
+
+.introjs-helperLayer {
+  border-radius: var(--radius) !important;
+  box-shadow: 0 0 1px 2px var(--ring), 0 0 0 9999px rgb(0 0 0 / 60%) !important;
+  z-index: 9999999 !important;
+  position: absolute !important;
+}
+
+.introjs-tooltip {
+  background: var(--card) !important;
+  color: var(--card-foreground) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.introjs-tooltip-header {
+  border-bottom: 1px solid var(--border) !important;
+  display: none !important;
+}
+
+.introjs-tooltip-title {
+  color: var(--foreground) !important;
+}
+
+.introjs-tooltiptext {
+  color: var(--muted-foreground) !important;
+}
+.introjs-bullets{
+  padding-top: 0 !important;
+}
+
+.introjs-bullets ul li a {
+  background: var(--muted) !important;
+}
+.introjs-bullets ul li a.active {
+  background: var(--primary) !important;
+}
+
+.introjs-progressbar {
+  background-color: var(--primary) !important;
+}
+
+/* Hide progress container */
+.introjs-progress {
+  display: none !important;
+}
+.introjs-tooltipbuttons{
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap:5px;
+}
+.introjs-prevbutton{
+  margin-left: auto;
+}
+.introjs-custom-skip{
+  order: -1;
+}
+
+.introjs-button {
+  border-radius: calc(var(--radius) - 2px) !important;
+  border: 1px solid var(--border) !important;
+  background: var(--secondary) !important;
+  color: var(--secondary-foreground) !important;
+  text-shadow: none !important;
+}
+.introjs-button:hover {
+  background: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+}
+.introjs-skipbutton {
+  background: transparent !important;
+  color: var(--muted-foreground) !important;
+  border-color: transparent !important;
+}
+.introjs-nextbutton,
+.introjs-donebutton {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  border-color: var(--primary) !important;
+}
+.introjs-nextbutton:hover,
+.introjs-donebutton:hover {
+  filter: brightness(0.95) !important;
+}
+
+/* Custom Intro.js tooltip width */
+.intro-tooltip-wide {
+  min-width: 400px !important;
+  max-width: 300px !important;
+}
+
+@media (max-width: 640px) {
+  .intro-tooltip-wide {
+    min-width: 280px !important;
+    max-width: 320px !important;
+  }
+}
+
+/* Fix Intro.js arrows to ensure they point correctly */
+.introjs-arrow {
+  border: 10px solid transparent !important;
+}
+
+/* Arrow pointing to the top */
+.introjs-arrow.top {
+  border-bottom-color: var(--card) !important;
+  top: -20px !important;
+}
+
+/* Arrow pointing to the right */
+.introjs-arrow.right {
+  border-left-color: var(--card) !important;
+  right: -20px !important;
+}
+
+/* Arrow pointing to the bottom */
+.introjs-arrow.bottom {
+  border-top-color: var(--card) !important;
+  bottom: -20px !important;
+}
+
+/* Arrow pointing to the left */
+.introjs-arrow.left {
+  border-right-color: var(--card) !important;
+  left: -20px !important;
+}
+
+/* Ensure tooltip reference layer has highest z-index */
+.introjs-tooltipReferenceLayer {
+  z-index: 10000000 !important;
+}
+
+/* Overlay should be below everything else */
+.introjs-overlay {
+  z-index: 9999998 !important;
+}
+
+/* Fix for floating buttons */
+.floating-button-group {
+  z-index: 40;
+}
+
+.scroll-to-top-btn {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 40;
+  display: flex;
+  height: 3rem;
+  width: 3rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  background: color-mix(in srgb, var(--card) 72%, transparent);
+  color: var(--foreground);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 45%, transparent),
+    0 12px 28px color-mix(in srgb, var(--primary) 16%, transparent);
+  backdrop-filter: saturate(1.2) blur(16px);
+  -webkit-backdrop-filter: saturate(1.2) blur(16px);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate3d(0, 8px, 0);
+  transition:
+    opacity 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 180ms ease;
+}
+
+.scroll-to-top-btn.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate3d(0, 0, 0);
+}
+
+.scroll-to-top-btn:hover {
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+}
+
+.scroll-to-top-btn.has-fabs {
+  bottom: 11.5rem;
+}
+
+@media (min-width: 640px) {
+  .scroll-to-top-btn.has-fabs {
+    bottom: 13rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .scroll-to-top-btn {
+    bottom: 6rem;
+  }
+
+  .scroll-to-top-btn.has-fabs {
+    bottom: 14.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .scroll-to-top-btn.has-fabs {
+    right: 13%;
+  }
+}
+
+.introjs-fixedTooltip {
+  position: fixed !important;
+}
+
+/* Ensure arrows are visible */
+.introjs-arrow.top::before,
+.introjs-arrow.bottom::before,
+.introjs-arrow.left::before,
+.introjs-arrow.right::before {
+  display: none !important;
+}
+
+/* Auth screens — match website /login mock vault, scoped so the app theme stays put */
+.lumora-auth {
+  --background: hsl(76 48% 95%);
+  --foreground: hsl(164 80% 12%);
+  --border: hsl(154 27% 78%);
+  --card: hsl(76 50% 98%);
+  --card-foreground: hsl(164 80% 12%);
+  --muted: hsl(85 30% 89%);
+  --muted-foreground: hsl(155 24% 36%);
+  --primary: hsl(162 80% 15%);
+  --primary-foreground: hsl(76 78% 72%);
+  --app-font-sans: "DM Sans", sans-serif;
+  --app-font-serif: "Instrument Serif", serif;
+  --app-font-mono: "DM Mono", monospace;
+  min-width: 0;
+  width: 100%;
+  overflow-x: clip;
+  overflow-y: auto;
+  color: var(--foreground);
+  font-family: var(--app-font-sans);
+  background-color: hsl(76 48% 95%);
+  background-image:
+    linear-gradient(rgba(8, 71, 52, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(8, 71, 52, 0.08) 1px, transparent 1px),
+    radial-gradient(circle at 84% 8%, rgba(206, 241, 123, 0.18), transparent 24rem);
+  background-size: 32px 32px, 32px 32px, auto;
+  background-position: 0 0, 0 0, 0 0;
+  background-attachment: local;
+}
+
+.dark .lumora-auth {
+  --background: hsl(164 80% 9%);
+  --foreground: hsl(76 48% 95%);
+  --border: hsl(158 30% 27%);
+  --card: hsl(163 48% 13%);
+  --card-foreground: hsl(76 48% 95%);
+  --muted: hsl(158 27% 20%);
+  --muted-foreground: hsl(92 30% 72%);
+  --primary: hsl(76 78% 72%);
+  --primary-foreground: hsl(164 80% 9%);
+  background-color: hsl(164 80% 9%);
+  background-image:
+    linear-gradient(rgba(206, 241, 123, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(206, 241, 123, 0.08) 1px, transparent 1px),
+    radial-gradient(circle at 84% 8%, rgba(8, 71, 52, 0.35), transparent 24rem);
+}
+
+.lumora-auth .lumora-eyebrow {
+  font-family: var(--app-font-mono);
+  font-size: 0.68rem;
+  line-height: 1.3;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lumora-auth .lumora-display {
+  font-family: var(--app-font-serif);
+  font-weight: 400;
+  letter-spacing: -0.045em;
+}
+
+.lumora-auth .lumora-display em {
+  font-style: italic;
+}
+
+.lumora-auth h1 {
+  font-weight: 400;
+}
+
+.lumora-auth button,
+.lumora-auth a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lumora-auth .lumora-focus-ring:focus-visible {
+  outline: 2px solid #cef17b;
+  outline-offset: 3px;
+}
+
+.lumora-auth .lumora-soft-card {
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  background: color-mix(in srgb, var(--card) 82%, transparent);
+  box-shadow: 0 18px 55px color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+.lumora-auth input,
+.lumora-auth button {
+  max-width: 100%;
+}
+
+.lumora-auth .lumora-magnetic-cta {
+  transition: transform 220ms cubic-bezier(.2, .8, .2, 1), background-color 220ms ease, color 220ms ease;
+}
+
+.lumora-auth .lumora-magnetic-cta:hover {
+  transform: translateY(-3px);
+}
+
+.lumora-auth .lumora-magnetic-cta:active {
+  transform: translateY(0) scale(.98);
+}
+
+.lumora-auth ::selection {
+  background: #cef17b;
+  color: #084734;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lumora-auth .lumora-magnetic-cta {
+    transition: none;
+  }
+}
+
+
