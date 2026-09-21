@@ -1,66 +1,56 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { ArrowRight, Eye, EyeOff, Fingerprint } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Moon, Sun } from "lucide-react";
-import { useTheme } from "@/components/theme-provider";
-
 import { useAuth } from "@/lib/auth";
 import BiometricAuth from "@/components/biometric-auth";
 import { RecoveryKeyDialog } from "@/components/recovery-key-dialog";
 import { getBiometricToken } from "@/lib/biometric";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
+import { AuthStatus, LumoraAuthLayout } from "@/components/lumora-auth-layout";
 
 export default function Login() {
-  const [, setLocation] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showBiometric, setShowBiometric] = useState(false);
   const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
   const [formData, setFormData] = useState({
     username: "",
     password: "",
   });
 
   const { toast } = useToast();
-  const { theme, setTheme } = useTheme();
   const { login, generateTokenAfterLogin } = useAuth();
   const { biometricEnabled } = useUserPreferences();
 
-  // Check if we should show biometric options after user enters username
   useEffect(() => {
     if (formData.username.trim()) {
-      // Small delay to avoid showing biometric options too early
-      const timer = setTimeout(() => {
-        setShowBiometric(true);
-      }, 300);
+      const timer = setTimeout(() => setShowBiometric(true), 300);
       return () => clearTimeout(timer);
-    } else {
-      setShowBiometric(false);
     }
+    setShowBiometric(false);
   }, [formData.username]);
+
+  const finishLogin = async (session: Awaited<ReturnType<typeof login>>) => {
+    toast({ title: "Login successful", description: "Welcome back to Lumora!" });
+    await generateTokenAfterLogin(session.user);
+    if (session.recoveryKey) {
+      setRecoveryKey(session.recoveryKey);
+      return;
+    }
+    window.location.replace("/");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setMessage("");
     setIsLoading(true);
-
-    // Simulate a small delay for better UX
-    await new Promise(resolve => setTimeout(resolve, 500));
-
+    await new Promise((resolve) => setTimeout(resolve, 500));
     try {
       const session = await login({ username: formData.username.trim(), password: formData.password });
-      toast({ title: "Login successful", description: "Welcome back to Lumora!" });
-      await generateTokenAfterLogin(session.user);
-      if (session.recoveryKey) {
-        setRecoveryKey(session.recoveryKey);
-        return;
-      }
-      window.location.replace("/");
-    } catch (error) {
+      await finishLogin(session);
+    } catch {
+      setMessage("Invalid username or password");
       toast({
         title: "Login failed",
         description: "Invalid username or password",
@@ -74,14 +64,9 @@ export default function Login() {
   const handleBiometricSuccess = async () => {
     try {
       const session = await login({ username: formData.username.trim(), password: formData.password });
-      toast({ title: "Login successful", description: "Welcome back to Lumora!" });
-      await generateTokenAfterLogin(session.user);
-      if (session.recoveryKey) {
-        setRecoveryKey(session.recoveryKey);
-        return;
-      }
-      window.location.replace("/");
-    } catch (error) {
+      await finishLogin(session);
+    } catch {
+      setMessage("Biometric authentication succeeded but login failed");
       toast({
         title: "Login failed",
         description: "Biometric authentication succeeded but login failed",
@@ -91,141 +76,102 @@ export default function Login() {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
     }));
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="absolute top-4 right-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="p-2"
-          onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-          data-testid="button-theme-toggle"
-        >
-           {theme === "light" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-        </Button>
-      </div>
-      
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-3 text-center">
-          <div className="flex justify-center">
-
-          <svg xmlns="http://www.w3.org/2000/svg" width="141" height="166" viewBox="0 0 141 166" className="w-10 h-10 text-foreground" fill="currentColor">
-              <path xmlns="http://www.w3.org/2000/svg" d="M70 46L70.5 83L101 101.5V148L69.5 166L0 125V41L31.5 23L70 46ZM8 120L69.5 156.263V120L38.5 102V64L8 46.5V120Z"/>
-              <path xmlns="http://www.w3.org/2000/svg" d="M140.5 125L108.5 143.5V60.5L39 18.5L70 0L140.5 42V125Z"/>
-          </svg>
-
-          </div>
-          <div>
-            <CardTitle className="text-2xl font-bold">Lumora</CardTitle>
-            <CardDescription>Sign in to your account</CardDescription>
-          </div>
-        </CardHeader>
-        
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                name="username"
-                type="text"
-                placeholder="Enter your username"
-                value={formData.username}
+    <>
+      <LumoraAuthLayout mode="unlock" title="Unlock your vault">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <label className="block text-xs font-semibold">
+            Username
+            <input
+              id="username"
+              name="username"
+              type="text"
+              autoComplete="username"
+              placeholder="Your username"
+              value={formData.username}
+              onChange={handleChange}
+              required
+              className="lumora-focus-ring mt-2 h-12 w-full rounded-xl border border-current/15 bg-transparent px-4 text-sm outline-none"
+              data-testid="input-username"
+            />
+          </label>
+          <label className="block text-xs font-semibold">
+            Password
+            <div className="relative mt-2">
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder="Your account password"
+                value={formData.password}
                 onChange={handleChange}
                 required
-                data-testid="input-username"
+                className="lumora-focus-ring h-12 w-full rounded-xl border border-current/15 bg-transparent px-4 pr-11 text-sm outline-none"
+                data-testid="input-password"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="lumora-focus-ring absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                data-testid="button-toggle-password"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  data-testid="input-password"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3"
-                  onClick={() => setShowPassword(!showPassword)}
-                  data-testid="button-toggle-password"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
+          </label>
+          <button
+            disabled={isLoading}
+            type="submit"
+            className="lumora-magnetic-cta flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#084734] px-3 text-sm font-semibold text-[#cef17b] disabled:opacity-50"
+            data-testid="button-login"
+          >
+            {isLoading ? "Unlocking…" : "Unlock Lumora"}
+            <ArrowRight size={15} />
+          </button>
+        </form>
 
-            <div className="text-right">
-              <Link href="/forgot-password" className="text-sm font-medium text-primary hover:underline">
-                Forgot password?
-              </Link>
-            </div>
-
-            <Button 
-              type="submit" 
-              className="w-full" 
+        {showBiometric && formData.username.trim() && biometricEnabled ? (
+          <div className="mt-4 space-y-3">
+            <BiometricAuth
+              userId={formData.username.trim()}
+              username={formData.username.trim()}
+              onSuccess={handleBiometricSuccess}
               disabled={isLoading}
-              data-testid="button-login"
-            >
-              {isLoading ? "Signing in..." : "Sign in"}
-            </Button>
-          </form>
-
-          {/* Biometric Authentication Section */}
-          {showBiometric && formData.username.trim() && biometricEnabled && (
-            <>
-              <div className="my-4">
-                <Separator className="my-4">
-                </Separator>
-              </div>
-              
-              <BiometricAuth
-                userId={formData.username.trim()}
-                username={formData.username.trim()}
-                onSuccess={handleBiometricSuccess}
-                disabled={isLoading}
-                showRegisterOption={true}
-              />
-              
-              {/* Show biometric token status if available */}
-              {getBiometricToken() && (
-                <div className="mt-2 text-xs text-center text-muted-foreground">
-                  Quick login token available for this device
-                </div>
-              )}
-            </>
-          )}
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link href="/register" className="font-medium text-primary hover:underline" data-testid="link-register">
-                Sign up
-              </Link>
-            </p>
+              showRegisterOption={true}
+            />
+            {getBiometricToken() && (
+              <p className="text-center text-[0.68rem] text-muted-foreground">
+                Quick login token available for this device
+              </p>
+            )}
           </div>
-        </CardContent>
-      </Card>
+        ) : (
+          <button
+            type="button"
+            onClick={() =>
+              setMessage("Enter your username first, then use fingerprint on a supported device.")
+            }
+            className="lumora-focus-ring mt-4 flex h-auto min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-current/15 px-3 py-2.5 text-center text-xs font-semibold leading-snug transition hover:bg-current/5"
+            data-testid="button-fingerprint-login"
+          >
+            <Fingerprint size={17} className="text-[#4b8b69]" />
+            Try fingerprint / device biometrics
+          </button>
+        )}
+
+        {message && <AuthStatus>{message}</AuthStatus>}
+      </LumoraAuthLayout>
       {recoveryKey && (
-        <RecoveryKeyDialog
-          recoveryKey={recoveryKey}
-          onDone={() => window.location.replace("/")}
-        />
+        <RecoveryKeyDialog recoveryKey={recoveryKey} onDone={() => window.location.replace("/")} />
       )}
-    </div>
+    </>
   );
 }

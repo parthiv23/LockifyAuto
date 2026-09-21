@@ -1,82 +1,17 @@
-import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/auth";
-import { Loader2, ArrowLeft, Moon, Sun, Shield, Target, Lock, Heart, Zap, Eye } from "lucide-react";
-import { useTheme } from "@/components/theme-provider";
+import { ArrowLeft, Shield, Target, Lock, Heart, Zap, Eye } from "lucide-react";
+import { FloatingAppNav } from "@/components/floating-app-nav";
 
 export default function About() {
   const [, setLocation] = useLocation();
-  const { theme, setTheme } = useTheme();
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-
-  const avatarUrl = (() => {
-    if (user?.profileimage) return user.profileimage;
-    const seed = (user?.id || user?.username || "1").length % 100 || 1;
-    return `https://avatar.iran.liara.run/public/${seed}`;
-  })();
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header/Navbar */}
-      <nav className="hidden md:block bg-card border-b border-border sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <div className="flex items-center">
-              <Link href="/">
-                <div className="flex items-center space-x-2">
-                  <div className="bg-primary/10 rounded-lg text-primary">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="141" height="166" viewBox="0 0 141 166" className="w-9 h-9 text-primary" fill="currentColor">
-                      <path xmlns="http://www.w3.org/2000/svg" d="M70 46L70.5 83L101 101.5V148L69.5 166L0 125V41L31.5 23L70 46ZM8 120L69.5 156.263V120L38.5 102V64L8 46.5V120Z"/>
-                      <path xmlns="http://www.w3.org/2000/svg" d="M140.5 125L108.5 143.5V60.5L39 18.5L70 0L140.5 42V125Z"/>
-                    </svg>
-                  </div>
-                  <h1 className="text-xl font-semibold text-foreground">Lumora</h1>
-                </div>
-              </Link>
-            </div>
-
-            {/* Right Side Controls */}
-            <div className="flex items-center space-x-2 sm:space-x-4">
-              {/* Dark Mode Toggle */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-                className="p-2"
-              >
-                {theme === "light" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-              </Button>
-
-              {/* User avatar and username */}
-              {user && (
-                <div className="flex items-center gap-2 pr-1 cursor-pointer" onClick={() => setLocation("/profile")}>
-                  <div className="relative w-7 h-7">
-                    {loading && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-muted rounded-full">
-                        <Loader2 className="animate-spin w-4 h-4 text-muted-foreground" />
-                      </div>
-                    )}
-                    <img
-                      src={avatarUrl}
-                      alt="avatar"
-                      className={`w-7 h-7 rounded-full border ${loading ? 'opacity-0' : 'opacity-100'}`}
-                      onLoad={() => setLoading(false)}
-                      onError={() => setLoading(false)}
-                    />
-                  </div>
-                  <span className="hidden sm:inline text-sm text-foreground">{user.username}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
+      <FloatingAppNav />
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 md:pt-24">
         <div className="mb-6 flex items-center gap-2">
           <ArrowLeft
             className="w-8 h-8 rounded-md bg-primary/10 p-1 cursor-pointer"
@@ -91,7 +26,7 @@ export default function About() {
         <div className="max-w-4xl mx-auto space-y-6">
           
           {/* Mission Section */}
-          <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+          <div className="rounded-xl border bg-card text-card-foreground shadow-sm p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="bg-primary/10 rounded-lg p-2">
                 <Target className="w-6 h-6 text-primary" />
@@ -107,7 +42,7 @@ export default function About() {
           </div>
 
           {/* What We Believe Section */}
-          <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+          <div className="rounded-xl border bg-card text-card-foreground shadow-sm p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="bg-primary/10 rounded-lg p-2">
                 <Heart className="w-6 h-6 text-primary" />
@@ -157,7 +92,7 @@ export default function About() {
           </div>
 
           {/* Features Section */}
-          <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+          <div className="rounded-xl border bg-card text-card-foreground shadow-sm p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="bg-primary/10 rounded-lg p-2">
                 <Lock className="w-6 h-6 text-primary" />
@@ -197,7 +132,7 @@ export default function About() {
           </div>
 
           {/* About the Creator Section */}
-          <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+          <div className="rounded-xl border bg-card text-card-foreground shadow-sm p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="bg-primary/10 rounded-lg p-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-primary">

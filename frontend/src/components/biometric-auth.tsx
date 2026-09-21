@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useBiometric } from '@/hooks/use-biometric';
 import { useUserPreferences } from '@/hooks/use-user-preferences';
-import { Fingerprint, Smartphone, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { Fingerprint, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface BiometricAuthProps {
@@ -29,7 +29,6 @@ export function BiometricAuth({
   const { toast } = useToast();
   const { biometricEnabled } = useUserPreferences();
   const { 
-    isSupported, 
     isLoading, 
     isRegistering, 
     isAuthenticating, 
@@ -148,18 +147,18 @@ export function BiometricAuth({
           type="button"
           onClick={handleAuthenticate}
           disabled={disabled || isAuthenticating || isRegistering}
-          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200"
-          size="lg"
+          className="h-11 w-full rounded-xl border border-current/15 bg-transparent text-xs font-semibold text-foreground hover:bg-current/5"
+          variant="outline"
         >
           {isAuthenticating ? (
             <>
-              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               Authenticating...
             </>
           ) : (
             <>
-              <Fingerprint className="w-5 h-5 mr-2" />
-              Use Fingerprint
+              <Fingerprint className="w-4 h-4 mr-2 text-[#4b8b69]" />
+              Try fingerprint / device biometrics
             </>
           )}
         </Button>
@@ -172,41 +171,33 @@ export function BiometricAuth({
           onClick={handleRegister}
           disabled={disabled || isRegistering || isAuthenticating}
           variant="outline"
-          className="w-full border-2 border-dashed border-primary/30 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200"
-          size="lg"
+          className="h-11 w-full rounded-xl border border-current/15 text-xs font-semibold hover:bg-current/5"
         >
           {isRegistering ? (
             <>
-              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               Setting up...
             </>
           ) : (
             <>
-              <Fingerprint className="!w-6 !h-6" />
-              Set up Fingerprint Login
+              <Fingerprint className="w-4 h-4 mr-2 text-[#4b8b69]" />
+              Set up fingerprint login
             </>
           )}
         </Button>
       )}
 
       {/* Info text */}
-      <div className="text-center text-sm text-muted-foreground">
+      <div className="text-center text-[0.68rem] text-muted-foreground">
         {hasStoredCredential ? (
           <>
-            <CheckCircle className="w-4 h-4 inline mr-1 text-green-500" />
+            <CheckCircle className="w-3 h-3 inline mr-1 text-[#4b8b69]" />
             Biometric authentication is set up
           </>
         ) : (
-          "Secure login with your device's biometric authentication"
+          "Use your device fingerprint after entering your username"
         )}
       </div>
-
-      {/* Browser support info */}
-      {isSupported && (
-        <div className="text-xs text-muted-foreground text-center bg-muted/50 rounded-lg p-2">
-          Works on mobile devices with fingerprint sensors
-        </div>
-      )}
     </div>
   );
 }

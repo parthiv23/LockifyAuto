@@ -92,7 +92,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
 }).extend({
   password: accountPasswordSchema,
-  profileimage: z.string().url().optional(),
+  profileimage: z.string().min(1).optional(),
 });
 
 export const insertPasswordRecordSchema = createInsertSchema(passwordRecords).pick({

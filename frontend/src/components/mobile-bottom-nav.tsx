@@ -95,7 +95,7 @@ export function MobileBottomNav() {
         className="md:hidden fixed left-1/2 z-[60] w-[min(92%,22rem)] -translate-x-1/2 bottom-[max(1rem,env(safe-area-inset-bottom))]"
         aria-label="Mobile navigation"
       >
-        <div className="flex items-center justify-around rounded-full border border-border bg-card px-2 py-2 shadow-[0_12px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.55)]">
+        <div className="flex items-center justify-around rounded-full border border-border bg-card px-2 py-2 shadow-[0_12px_40px_rgba(8,71,52,0.16)] backdrop-blur-md dark:shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
           {items.map(({ id, label, active, Icon, onClick }) => (
             <button
               key={id}
