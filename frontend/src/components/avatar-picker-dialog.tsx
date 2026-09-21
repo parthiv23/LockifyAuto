@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Loader2, Check } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { FEMALE_AVATARS, MALE_AVATARS } from "@/lib/avatars";
 
 type AvatarPickerDialogProps = {
   open: boolean;
@@ -10,18 +10,25 @@ type AvatarPickerDialogProps = {
   onSelect: (url: string) => void;
 };
 
-function AvatarGrid({ rangeStart, rangeEnd, onPick, loaded, setLoaded }: { rangeStart: number; rangeEnd: number; onPick: (url: string) => void; loaded: Record<number, boolean>; setLoaded: React.Dispatch<React.SetStateAction<Record<number, boolean>>> }) {
-  const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
-  const items = useMemo(() => Array.from({ length: rangeEnd - rangeStart + 1 }, (_, i) => rangeStart + i), [rangeStart, rangeEnd]);
-
+function AvatarGrid({
+  avatars,
+  onPick,
+  loaded,
+  setLoaded,
+}: {
+  avatars: readonly string[];
+  onPick: (url: string) => void;
+  loaded: Record<string, boolean>;
+  setLoaded: Dispatch<SetStateAction<Record<string, boolean>>>;
+}) {
   return (
-    <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3 overflow-y-auto overflow-x-hidden max-h-80">
-      {items.map((i) => {
-        const url = `https://avatar.iran.liara.run/public/${i}`;
-        const isLoading = loadingIndex === i || !loaded[i];
+    <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 overflow-y-auto overflow-x-hidden max-h-80 p-1">
+      {avatars.map((url) => {
+        const isLoading = !loaded[url];
         return (
           <button
-            key={i}
+            key={url}
+            type="button"
             className="relative w-auto aspect-square rounded-full overflow-hidden border border-border hover:ring-2 hover:ring-primary transition"
             onClick={() => onPick(url)}
           >
@@ -32,12 +39,10 @@ function AvatarGrid({ rangeStart, rangeEnd, onPick, loaded, setLoaded }: { range
             )}
             <img
               src={url}
-              alt={`Avatar ${i}`}
+              alt="Avatar option"
               className={`w-full h-full object-cover ${isLoading ? "opacity-0" : "opacity-100"}`}
-              onLoad={() => setLoaded((s) => ({ ...s, [i]: true }))}
-              onError={() => setLoaded((s) => ({ ...s, [i]: true }))}
-              onMouseDown={() => setLoadingIndex(i)}
-              onMouseUp={() => setLoadingIndex(null)}
+              onLoad={() => setLoaded((s) => ({ ...s, [url]: true }))}
+              onError={() => setLoaded((s) => ({ ...s, [url]: true }))}
             />
           </button>
         );
@@ -47,8 +52,7 @@ function AvatarGrid({ rangeStart, rangeEnd, onPick, loaded, setLoaded }: { range
 }
 
 export default function AvatarPickerDialog({ open, onOpenChange, onSelect }: AvatarPickerDialogProps) {
-  // Persist loaded-state across tab switches so images don't show loaders again
-  const [loadedMap, setLoadedMap] = useState<Record<number, boolean>>({});
+  const [loadedMap, setLoadedMap] = useState<Record<string, boolean>>({});
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl px-2 py-4 sm:p-4">
@@ -61,15 +65,29 @@ export default function AvatarPickerDialog({ open, onOpenChange, onSelect }: Ava
             <TabsTrigger value="female">Female</TabsTrigger>
           </TabsList>
           <TabsContent value="male" forceMount className="space-y-4">
-            <AvatarGrid rangeStart={1} rangeEnd={50} loaded={loadedMap} setLoaded={setLoadedMap} onPick={(url) => { onSelect(url); onOpenChange(false); }} />
+            <AvatarGrid
+              avatars={MALE_AVATARS}
+              loaded={loadedMap}
+              setLoaded={setLoadedMap}
+              onPick={(url) => {
+                onSelect(url);
+                onOpenChange(false);
+              }}
+            />
           </TabsContent>
           <TabsContent value="female" forceMount className="space-y-4">
-            <AvatarGrid rangeStart={51} rangeEnd={100} loaded={loadedMap} setLoaded={setLoadedMap} onPick={(url) => { onSelect(url); onOpenChange(false); }} />
+            <AvatarGrid
+              avatars={FEMALE_AVATARS}
+              loaded={loadedMap}
+              setLoaded={setLoadedMap}
+              onPick={(url) => {
+                onSelect(url);
+                onOpenChange(false);
+              }}
+            />
           </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>
   );
 }
-
-

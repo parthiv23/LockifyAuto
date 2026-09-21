@@ -8,6 +8,7 @@ import Profile from "@/pages/profile";
 import About from "@/pages/about";
 import ForgotPassword from "@/pages/forgot-password";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { ScrollToTopButton } from "@/components/scroll-to-top-button";
 import BiometricLogin from "@/components/biometric-login";
 import BiometricSetupPrompt from "@/components/biometric-setup-prompt";
 import { queryClient } from "@/lib/queryClient";
@@ -121,6 +122,7 @@ function AppRoutes() {
         <Route>{() => <NotFound />}</Route>
       </Switch>
       <MobileBottomNav />
+      <ScrollToTopButton />
       
       {/* Biometric setup prompt */}
       {showBiometricSetup && user && (

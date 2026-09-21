@@ -5,6 +5,7 @@ import { history } from "./history";
 import { VibrateIfEnabled } from "./vibration";
 import { clearVault, rewrapDekForNewPassword, unlockVaultWithPassword, type VaultWrap } from "./vault";
 import { provisionNewVault, provisionVaultAndMigrateLegacy } from "./vault-setup";
+import { randomAvatar } from "./avatars";
 import {
   generateBiometricToken,
   authenticateWithBiometricToken,
@@ -180,8 +181,7 @@ export function useAuth() {
 
   const registerMutation = useMutation({
     mutationFn: async (userData: { username: string; password: string }): Promise<AuthSession> => {
-      const randomId = Math.floor(Math.random() * 100) + 1;
-      const profileimage = `https://avatar.iran.liara.run/public/${randomId}`;
+      const profileimage = randomAvatar();
       const res = await apiRequest("POST", "/api/auth/register", {
         ...userData,
         profileimage,

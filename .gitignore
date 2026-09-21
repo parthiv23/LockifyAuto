@@ -2,6 +2,7 @@ node_modules
 dist
 frontend/dist
 backend/dist
+website/dist
 .DS_Store
 backend/public
 vite.config.ts.*

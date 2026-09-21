@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 // Auth removed for open app
-import { useTheme } from "@/components/theme-provider";
 import { useAuth } from "@/lib/auth";
+import { FloatingAppNav } from "@/components/floating-app-nav";
 import { PasswordRecord } from "@shared/schema";
 import { PasswordRecordCard } from "@/components/password-record-card";
 import { RecordModal } from "@/components/record-modal";
@@ -14,8 +14,8 @@ import { DeleteModal } from "@/components/delete-modal";
 
 import { OnboardingGuide } from "@/components/onboarding-guide";
 import { PasswordGenerator } from "@/components/password-generator";
-import { Plus, Search, Filter, Moon, Sun, Key, ArrowUpDown, Calendar as CalendarIcon, User, Loader2, X, RefreshCcw, Trash2, MoreVertical, ArrowLeft, RefreshCw } from "lucide-react";
-import { Link, useLocation } from "wouter";
+import { Plus, Search, Filter, Key, ArrowUpDown, Calendar as CalendarIcon, X, RefreshCcw, Trash2, MoreVertical, ArrowLeft, RefreshCw } from "lucide-react";
+import { useLocation } from "wouter";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
@@ -26,11 +26,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { history, HistoryEvent } from "@/lib/history";
+import { decryptRecord } from "@/lib/vault";
 
 type SortOption = "newest" | "oldest" | "email" | "updated" | "starred";
 
 export default function Dashboard() {
-  const { theme, setTheme } = useTheme();
   const { user, updateOnboardingStatus, generateTokenAfterLogin } = useAuth();
   const [location, setLocation] = useLocation();
 
@@ -81,7 +81,6 @@ export default function Dashboard() {
   const [isPasswordGeneratorOpen, setIsPasswordGeneratorOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<PasswordRecord | null>(null);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
-  const [loading, setLoading] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
   const [createdDateRange, setCreatedDateRange] = useState<DateRange | undefined>(savedSettings?.createdDateRange);
   const [showCalendar, setShowCalendar] = useState<boolean>(false);
@@ -95,11 +94,6 @@ export default function Dashboard() {
   const domainInputRef = useRef<HTMLInputElement | null>(null);
   const calendarRef = useRef<HTMLDivElement | null>(null);
   const wasEmptyBeforeAddRef = useRef<boolean>(false);
-  const avatarUrl = (() => {
-    if (user?.profileimage) return user.profileimage;
-    const seed = (user?.id || user?.username || "1").length % 100 || 1;
-    return `https://avatar.iran.liara.run/public/${seed}`;
-  })();
 
   const { data: records = [], isLoading } = useQuery<PasswordRecord[]>({
     queryKey: ["/api/records"],
@@ -137,6 +131,22 @@ export default function Dashboard() {
   const trashedRecords = (records as any[]).filter((r) => r.isDeleted);
   const nonDeletedRecords = (records as any[]).filter((r) => !r.isDeleted);
   const { toast } = useToast();
+
+  const replaceCachedRecord = (updated: PasswordRecord) => {
+    const current = queryClientRQ.getQueryData<PasswordRecord[]>(["/api/records"]) || [];
+    queryClientRQ.setQueryData(
+      ["/api/records"],
+      current.map((record) => (record.id === updated.id ? updated : record)),
+    );
+  };
+
+  const removeCachedRecord = (id: string) => {
+    const current = queryClientRQ.getQueryData<PasswordRecord[]>(["/api/records"]) || [];
+    queryClientRQ.setQueryData(
+      ["/api/records"],
+      current.filter((record) => record.id !== id),
+    );
+  };
 
   // History page state (for /history)
   const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
@@ -230,7 +240,12 @@ export default function Dashboard() {
         }
       }
       if (deletedCount > 0) {
-        queryClientRQ.invalidateQueries({ queryKey: ["/api/records"] });
+        for (const r of trashedRecords as any[]) {
+          const deletedAtMs = r.deletedAt ? new Date(r.deletedAt as any).getTime() : undefined;
+          if (deletedAtMs !== undefined && now - deletedAtMs >= cutoffMs) {
+            removeCachedRecord(r.id);
+          }
+        }
         toast({ title: "Auto-removed old items", description: `${deletedCount} item(s) older than 30 days were deleted.` });
         // Fire-and-forget history logging
         void history.add({ type: "trash: autoDelete", summary: `Auto-deleted ${deletedCount} item(s) from Trash` }).catch(() => {});
@@ -570,106 +585,46 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background relative">
-      {/* Navigation Header */}
-      <nav className="hidden md:block bg-card border-b border-border sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo and Brand */}
-            <div className="flex items-center space-x-2" onClick={() => setLocation("/")}>
-              <div className="bg-primary/10 rounded-lg text-primary">
-              <svg xmlns="http://www.w3.org/2000/svg" width="141" height="166" viewBox="0 0 141 166" className="w-9 h-9 text-primary" fill="currentColor">
-              <path xmlns="http://www.w3.org/2000/svg" d="M70 46L70.5 83L101 101.5V148L69.5 166L0 125V41L31.5 23L70 46ZM8 120L69.5 156.263V120L38.5 102V64L8 46.5V120Z"/>
-              <path xmlns="http://www.w3.org/2000/svg" d="M140.5 125L108.5 143.5V60.5L39 18.5L70 0L140.5 42V125Z"/>
-              </svg>
-              </div>
-              <h1 className="text-xl font-semibold text-foreground">Lumora</h1>
-            </div>
-            
-            {/* Right Side Controls */}
-            <div className="flex items-center space-x-2 sm:space-x-4">
-
-              {/* Manual Start Tour */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => startTour()}
-                className="p-2"
-                data-testid="button-start-tour"
-              >
-                <span className="hidden sm:inline">Start tour</span>
-                <span className="sm:hidden">Tour</span>
-              </Button>
-
-              {/* Dark Mode Toggle */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-                className="p-2"
-                data-testid="button-theme-toggle"
-              >
-                {theme === "light" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-              </Button>
-
-              {/* Trash actions moved to content header */}
-
-
-
-              {/* User avatar and username */}
-              {user && (
-                <div id="tour-avatar-desktop" className="flex items-center gap-2 pr-1 cursor-pointer" onClick={() => setLocation("/profile")}>
-                  <div className="relative w-7 h-7">
-                    {loading && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-muted rounded-full">
-                        <Loader2 className="animate-spin w-4 h-4 text-muted-foreground" />
-                      </div>
-                    )}
-                    <img
-                      src={avatarUrl}
-                      alt="avatar"
-                      className={`w-7 h-7 rounded-full border ${loading ? 'opacity-0' : 'opacity-100'}`}
-                      onLoad={() => setLoading(false)}
-                      onError={() => setLoading(false)}
-                    />
-                  </div>
-                  <span className="hidden sm:inline text-sm text-foreground">{user.username}</span>
-                </div>
-              )}
-              
-              {/* Profile Toggle */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setLocation("/profile")}
-                className="hidden p-2 bg-primary text-primary-foreground"
-                data-testid="button-profile-toggle"
-              >
-                <User className="w-5 h-5" />
-                <span className="hidden sm:inline">Profile</span>
-              </Button>
-  
-              {/* History moved to Profile page */}
-
-              {/* User Menu removed for open app */}
-            </div>
-          </div>
-        </div>
-      </nav>
+      <FloatingAppNav
+        extra={
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => startTour()}
+              className="rounded-full p-2"
+              data-testid="button-start-tour"
+            >
+              <span className="hidden sm:inline">Start tour</span>
+              <span className="sm:hidden">Tour</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setLocation("/profile")}
+              className="hidden p-2 bg-primary text-primary-foreground"
+              data-testid="button-profile-toggle"
+            >
+              Profile
+            </Button>
+          </>
+        }
+      />
       {/* Trash actions dropdown component */}
       {false && <></>}
   
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-8 md:pt-24 pb-40 max-md:pb-96">
         <div>
-        {!isTrashView && !isHistoryView && (  
-          <div className="mb-4">
+        {!isTrashView && !isHistoryView && (
+          <>
               
               {/* floating Add record and password generator */}
               <div className="floating-button-group fixed bottom-4 right-4 max-md:bottom-24 xl:right-[13%] flex flex-col xl:gap-3 gap-2 items-end">
                 <Button
                   id="tour-password-generator-mobile"
                   onClick={() => setIsPasswordGeneratorOpen(true)}
-                  className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-[#A889B3] text-black shadow-[0_10px_20px_rgba(0,0,0,0.35)] hover:shadow-[0_12px_24px_rgba(0,0,0,0.45)] transition-transform duration-200 active:translate-y-0.5"
+                  className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-secondary text-secondary-foreground shadow-[0_10px_20px_rgba(8,71,52,0.22)] hover:shadow-[0_12px_24px_rgba(8,71,52,0.32)] hover:bg-secondary/80 transition-transform duration-200 active:translate-y-0.5"
                   size="icon"
                   data-testid="button-password-generator"
                 >
@@ -678,7 +633,7 @@ export default function Dashboard() {
                 <Button
                   id="tour-add-record-mobile"
                   onClick={() => handleAddRecord()}
-                  className="flex items-center justify-center sm:w-20 sm:h-20 w-16 h-16 rounded-2xl bg-[#8AA0D8] text-black shadow-[0_14px_28px_rgba(0,0,0,0.4)] hover:shadow-[0_16px_32px_rgba(0,0,0,0.5)] transition-transform duration-200 active:translate-y-0.5"
+                  className="flex items-center justify-center sm:w-20 sm:h-20 w-16 h-16 rounded-2xl bg-primary text-primary-foreground shadow-[0_14px_28px_rgba(8,71,52,0.28)] hover:shadow-[0_16px_32px_rgba(8,71,52,0.38)] hover:bg-primary/90 transition-transform duration-200 active:translate-y-0.5"
                   data-testid="button-add-record"
                 >
                   <Plus className="w-9 h-9" />
@@ -691,22 +646,38 @@ export default function Dashboard() {
               
               {/* Search, Sort and Filters */}
               
-              <div className="search-sort-container flex flex-row gap-2">
+              <div className="search-sort-container mb-4 flex flex-row gap-2">
                 <div className="flex-1 relative" id="tour-search">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground pointer-events-none" />
                   <Input
                     type="text"
                     placeholder="Search by email or description..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 sm:pl-10 text-sm sm:text-base"
+                    className="h-11 rounded-full pl-9 sm:pl-10 pr-10 text-sm sm:text-base"
                     id="vault-search-input"
                     data-testid="input-search"
                   />
+                  {searchQuery.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-1.5 top-1/2 h-8 w-8 -translate-y-1/2 p-0 text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        setSearchQuery("");
+                        document.getElementById("vault-search-input")?.focus();
+                      }}
+                      aria-label="Clear search"
+                      data-testid="button-clear-search"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
                 <div className="flex gap-2 items-stretch">
                 <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
-                    <SelectTrigger id="tour-sort" className="relative w-full" data-testid="select-sort">
+                    <SelectTrigger id="tour-sort" className="relative h-11 w-full rounded-full px-4" data-testid="select-sort">
                       <ArrowUpDown className="w-4 h-4" />
                       <span className="ml-2 !hidden sm:!inline whitespace-nowrap">
                         <SelectValue placeholder="Sort by..." />
@@ -725,7 +696,7 @@ export default function Dashboard() {
                   </Select>
                   <Dialog open={filterOpen} onOpenChange={setFilterOpen}>
                     <DialogTrigger asChild>
-                      <Button id="tour-filters" variant="outline" className="relative" data-testid="button-filters">
+                      <Button id="tour-filters" variant="outline" className="relative h-11 rounded-full px-4" data-testid="button-filters">
                         <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
                         <span className="ml-2 hidden sm:inline">Filters</span>
                         {activeFilterCount > 0 && (
@@ -1074,7 +1045,7 @@ export default function Dashboard() {
                   </Dialog>
                 </div>
               </div>
-            </div>
+            </>
             )}
   
             {/* Main Content */}
@@ -1164,8 +1135,9 @@ export default function Dashboard() {
                           title="Restore"
                           aria-label="Restore"
                           onClick={async () => {
-                            await apiRequest("PUT", `/api/records/${r.id}`, { isDeleted: false, deletedAt: null });
-                            queryClientRQ.invalidateQueries({ queryKey: ["/api/records"] });
+                            const res = await apiRequest("PUT", `/api/records/${r.id}`, { isDeleted: false, deletedAt: null });
+                            const updated = await decryptRecord((await res.json()) as PasswordRecord);
+                            replaceCachedRecord(updated);
                             // Log history (no need to await)
                             void history.add({ type: "record: restore", summary: `Restored: ${r.email}`, details: { id: r.id } }).catch(() => {});
                           }}
@@ -1179,7 +1151,7 @@ export default function Dashboard() {
                           aria-label="Delete forever"
                           onClick={async () => {
                             await apiRequest("DELETE", `/api/records/${r.id}`);
-                            queryClientRQ.invalidateQueries({ queryKey: ["/api/records"] });
+                            removeCachedRecord(r.id);
                             // Log history (no need to await)
                             void history.add({ type: "record: delete", summary: `Permanently deleted: ${r.email}`, details: { id: r.id } }).catch(() => {});
                           }}

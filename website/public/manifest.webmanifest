@@ -1,0 +1,18 @@
+{
+  "name": "Lumora — Private by Design",
+  "short_name": "Lumora",
+  "description": "A local-first password vault designed to make privacy feel effortless.",
+  "start_url": "/login",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7fbf0",
+  "theme_color": "#084734",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

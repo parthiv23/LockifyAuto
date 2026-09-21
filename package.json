@@ -5,17 +5,20 @@
   "license": "MIT",
   "workspaces": [
     "frontend",
-    "backend"
+    "backend",
+    "website"
   ],
   "scripts": {
     "dev": "concurrently -n backend,frontend -c blue,green \"npm run dev -w lockify-backend\" \"npm run dev -w lockify-frontend\"",
     "dev:backend": "npm run dev -w lockify-backend",
     "dev:frontend": "npm run dev -w lockify-frontend",
+    "dev:website": "npm run dev -w lockify-website",
     "build": "npm run build -w lockify-frontend && npm run build -w lockify-backend",
     "build:frontend": "npm run build -w lockify-frontend",
     "build:backend": "npm run build -w lockify-backend",
+    "build:website": "npm run build -w lockify-website",
     "start:backend": "npm run start -w lockify-backend",
-    "check": "npm run check -w lockify-frontend && npm run check -w lockify-backend",
+    "check": "npm run check -w lockify-frontend && npm run check -w lockify-backend && npm run check -w lockify-website",
     "db:push": "drizzle-kit push"
   },
   "devDependencies": {
