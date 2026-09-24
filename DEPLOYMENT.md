@@ -1,12 +1,13 @@
 # LockifyAuto — Deploy frontend & backend separately
 
-The repo is split into two apps:
+The repo is split into three apps:
 
 | Folder | Role | Default local URL |
 |--------|------|-------------------|
-| `frontend/` | React + Vite UI | http://localhost:5173 |
+| `frontend/` | React + Vite app (the vault) | http://localhost:5173 |
 | `backend/` | Express REST API | http://localhost:5000 |
-| `shared/` | Zod schemas/types (used by both) | — |
+| `website/` | Marketing site | http://localhost:5174 |
+| `shared/` | Zod schemas/types (used by frontend + backend) | — |
 
 ## Local development
 
@@ -30,7 +31,7 @@ The repo is split into two apps:
    - Backend: port **5000**
    - Frontend: port **5173** (proxies `/api` → backend)
 
-3. Open **http://localhost:5173**
+3. Open **http://localhost:5173** for the app, or **http://localhost:5174** for the marketing site (`npm run dev:website`).
 
 Optional: run in two terminals:
 
@@ -38,6 +39,14 @@ Optional: run in two terminals:
 npm run dev:backend
 npm run dev:frontend
 ```
+
+Marketing site:
+
+```powershell
+npm run dev:website
+```
+
+Website CTAs go to the live app (`https://lumora0.netlify.app/login`, `/register`, `/forgot-password`). To point at a local frontend instead, set `website/.env.development` `VITE_APP_URL=http://localhost:5173`.
 
 ## Deploy backend (API)
 
@@ -208,11 +217,45 @@ Without `VITE_API_URL`, the built app calls `/api` on the frontend domain and lo
 
 ---
 
+## Deploy website (marketing)
+
+Host as a **second** static site. Do not point this at the API. `website/netlify.toml` is already configured for this.
+
+**Local production build** (from repo root):
+
+```powershell
+npm run build:website
+```
+
+Output: `website/dist/`. Preview with `npm run preview` in `website/` (http://localhost:4174).
+
+### Netlify
+
+Create a **new** site (do not reuse the frontend site). Then:
+
+| Setting | Value |
+|---------|--------|
+| Base directory | `website` |
+| Build command | `npm run build` |
+| Publish directory | `dist` |
+| Node | `20` |
+
+**Required environment variable** (Site settings → Environment variables):
+
+| Variable | Example |
+|----------|---------|
+| `VITE_APP_URL` | `https://lumora0.netlify.app` |
+
+`netlify.toml` already sets `VITE_APP_URL=https://lumora0.netlify.app`. SPA fallback is in `website/public/_redirects` (`/*` → `/index.html`).
+
+---
+
 ## Deploy order
 
 1. Deploy **backend** first and confirm it responds (e.g. `POST /api/auth/login` returns JSON, not HTML).
 2. Set `VITE_API_URL` on the frontend host to that backend URL.
 3. Deploy **frontend**.
+4. Deploy **website** with `VITE_APP_URL=https://lumora0.netlify.app`.
 
 ---
 
@@ -220,6 +263,8 @@ Without `VITE_API_URL`, the built app calls `/api` on the frontend domain and lo
 
 - [ ] Backend env: `MONGO_URI`, `MONGO_DB_NAME`, `JWT_SECRET` (strong secret)
 - [ ] Frontend env: `VITE_API_URL` = backend origin (HTTPS)
+- [ ] Website env: `VITE_APP_URL` = frontend origin (HTTPS)
+- [ ] Test Open Lumora / Create account from the marketing site
 - [ ] MongoDB allows connections from the backend host
 - [ ] Keep-alive: GitHub secrets `MONGO_URI` + EmailJS keys; test **Mongo health ping** workflow
 - [ ] Test register/login on the live frontend URL

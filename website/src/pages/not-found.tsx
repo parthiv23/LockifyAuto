@@ -1,23 +1,36 @@
-import { Card, CardContent } from '@/components/ui/card';
-import { AlertCircle } from 'lucide-react';
+import { Link } from "wouter";
+import { BrandMark } from "@/components/brand-mark";
+import { AppLink } from "@/components/app-link";
+import { Reveal } from "@/components/reveal";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md mx-4">
-        <CardContent className="pt-6">
-          <div className="flex mb-4 gap-2">
-            <AlertCircle className="h-8 w-8 text-red-500" />
-            <h1 className="text-2xl font-bold text-gray-900">
-              404 Page Not Found
-            </h1>
-          </div>
-
-          <p className="mt-4 text-sm text-gray-600">
-            Did you forget to add the page to the router?
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+    <main className="flex min-h-[100dvh] flex-col items-center justify-center bg-background px-6 text-center">
+      <Reveal>
+        <BrandMark />
+        <h1 className="display mt-10 text-[clamp(3.2rem,8vw,6rem)] leading-[.82] text-heading">
+          This page is not here.
+        </h1>
+        <p className="mt-5 max-w-sm text-sm leading-6 text-[hsl(var(--muted-foreground))]">
+          The address may be wrong, or the page moved. The vault still lives in the Lumora app.
+        </p>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+          <Link
+            href="/"
+            className="magnetic-cta rounded-full bg-ink px-5 py-3 text-sm font-semibold text-ink-foreground"
+            data-testid="link-404-home"
+          >
+            Back to the website
+          </Link>
+          <AppLink
+            path="/login"
+            className="story-link text-sm font-medium text-heading"
+            testId="link-404-app"
+          >
+            Open Lumora
+          </AppLink>
+        </div>
+      </Reveal>
+    </main>
   );
 }

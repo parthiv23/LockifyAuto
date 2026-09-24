@@ -44,7 +44,7 @@ export function LumoraAuthLayout({
         </Link>
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <span className="lumora-eyebrow hidden text-muted-foreground md:block">
-            local-first / zero knowledge
+            encrypted vault · keys stay on this device
           </span>
           <button
             type="button"
@@ -68,12 +68,12 @@ export function LumoraAuthLayout({
               <em className="text-[#4b8b69]">invisible.</em>
             </h1>
             <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-muted-foreground sm:mt-6 lg:mx-0 lg:mt-7">
-              Lumora encrypts your vault with a key only you hold. Sign in to open it, or recover with
-              the key you saved when you created your account.
+              Lumora encrypts your vault on this device, then stores the ciphertext with your account.
+              Sign in to open it, or recover with the key you saved when you created your account.
             </p>
             <div className="mt-5 hidden items-center justify-center gap-3 text-xs text-muted-foreground sm:flex lg:mt-10 lg:justify-start">
               <LockKeyhole size={16} className="shrink-0 text-[#4b8b69]" />
-              <span>AES-GCM encryption · your vault key never leaves this device</span>
+              <span>AES-GCM encryption · your vault key stays on this device</span>
             </div>
           </div>
 
