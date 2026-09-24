@@ -11,7 +11,9 @@ type HistoryEventType =
   | "record: restore"
   | "record: toggleStar"
   | "trash: empty"
-  | "trash: autoDelete";
+  | "trash: autoDelete"
+  | "vault: export"
+  | "vault: import";
 
 export interface HistoryEvent {
   id: string;

@@ -305,7 +305,7 @@ export default function Dashboard() {
         tooltipClass: "intro-tooltip-wide",
         steps: [
           { 
-            title: "Welcome to Lockify",
+            title: "Welcome to Lumora",
             intro: "Secure password management solution. This tour covers essential features." 
           },
           { 
