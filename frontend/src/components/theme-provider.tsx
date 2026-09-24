@@ -13,6 +13,8 @@ type ThemeProviderState = {
   setTheme: (theme: Theme) => void;
 };
 
+const THEME_FADE_MS = 500;
+
 const initialState: ThemeProviderState = {
   theme: "light",
   setTheme: () => null,
@@ -20,27 +22,55 @@ const initialState: ThemeProviderState = {
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
+function applyThemeClass(theme: Theme) {
+  const root = window.document.documentElement;
+  root.classList.remove("light", "dark");
+  root.classList.add(theme);
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function runThemeChange(apply: () => void) {
+  if (prefersReducedMotion()) {
+    apply();
+    return;
+  }
+
+  if (typeof document.startViewTransition === "function") {
+    document.startViewTransition(apply);
+    return;
+  }
+
+  const root = document.documentElement;
+  root.classList.add("theme-changing");
+  apply();
+  window.setTimeout(() => root.classList.remove("theme-changing"), THEME_FADE_MS);
+}
+
 export function ThemeProvider({
   children,
   defaultTheme = "light",
   storageKey = "lockify-theme",
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
+  const [theme, setThemeState] = useState<Theme>(
     () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
   );
 
   useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove("light", "dark");
-    root.classList.add(theme);
-  }, [theme]);
+    applyThemeClass(theme);
+  }, []);
 
   const value = {
     theme,
-    setTheme: (theme: Theme) => {
-      localStorage.setItem(storageKey, theme);
-      setTheme(theme);
+    setTheme: (next: Theme) => {
+      runThemeChange(() => {
+        applyThemeClass(next);
+        localStorage.setItem(storageKey, next);
+        setThemeState(next);
+      });
     },
   };
 

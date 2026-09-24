@@ -107,6 +107,11 @@
     @apply border-border;
   }
 
+  html {
+    background: hsl(var(--background));
+    --theme-fade: 500ms cubic-bezier(.22, .8, .2, 1);
+  }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
@@ -171,6 +176,23 @@
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold;
   }
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 500ms;
+  animation-timing-function: cubic-bezier(.22, .8, .2, 1);
+}
+
+html.theme-changing,
+html.theme-changing *:not(svg *),
+html.theme-changing::before,
+html.theme-changing::after,
+html.theme-changing *::before,
+html.theme-changing *::after {
+  transition-property: background-color, color, border-color, fill, stroke, box-shadow, opacity !important;
+  transition-duration: var(--theme-fade) !important;
+  transition-timing-function: cubic-bezier(.22, .8, .2, 1) !important;
 }
 
 /* width */
@@ -372,6 +394,11 @@
   .record-glass-card:hover,
   [data-testid^="card-record-"]:hover {
     transform: none;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
   }
 }
 

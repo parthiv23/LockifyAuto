@@ -57,8 +57,8 @@ export default function About() {
                 <div>
                   <h4 className="font-semibold text-foreground mb-1">Security First</h4>
                   <p className="text-muted-foreground text-sm">
-                    Your data is encrypted and protected with industry-standard security measures. 
-                    Your master password never leaves your device unencrypted.
+                    Your data is encrypted on the device before it is saved to your account.
+                    The vault key stays on this device; we never receive it in the clear.
                   </p>
                 </div>
               </div>
@@ -102,7 +102,7 @@ export default function About() {
             <ul className="space-y-2 text-muted-foreground">
               <li className="flex items-start gap-2">
                 <span className="text-primary mt-1">✓</span>
-                <span>Secure password vault with master password protection</span>
+                <span>Secure password vault with on-device encryption</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-primary mt-1">✓</span>
@@ -110,23 +110,19 @@ export default function About() {
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-primary mt-1">✓</span>
-                <span>Organize credentials by categories and domains</span>
+                <span>Starred favorites, search, and filters</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-primary mt-1">✓</span>
-                <span>Search and filter capabilities for quick access</span>
+                <span>Activity history and trash recovery</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-primary mt-1">✓</span>
-                <span>Activity history tracking and trash recovery</span>
+                <span>Fingerprint login and a recovery key</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-primary mt-1">✓</span>
-                <span>Beautiful dark and light themes</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary mt-1">✓</span>
-                <span>Responsive design for all devices</span>
+                <span>Dark and light themes, plus install as an app</span>
               </li>
             </ul>
           </div>

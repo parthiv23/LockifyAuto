@@ -12,7 +12,7 @@ interface OnboardingGuideProps {
 
 const onboardingSteps = [
   {
-    title: "Welcome to Lockify",
+    title: "Welcome to Lumora",
     description: "Secure password management with industry-standard encryption.",
     icon: (
       <svg
@@ -27,7 +27,7 @@ const onboardingSteps = [
         <path d="M140.5 125L108.5 143.5V60.5L39 18.5L70 0L140.5 42V125Z"/>
       </svg>
     ),
-    content: "All passwords are encrypted using advanced algorithms and protected by your master password.",
+    content: "All passwords are encrypted on your device with AES-GCM before they are stored with your account.",
   },
   {
     title: "Add Your First Password",
