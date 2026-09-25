@@ -155,6 +155,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
+  app.put("/api/auth/profile-image", authenticateToken, async (req: any, res) => {
+    try {
+      const { profileimage } = schema.updateProfileImageSchema.parse(req.body);
+      const updatedUser = await storage.updateUserProfileImage(req.user.userId, profileimage);
+      if (!updatedUser) return res.status(404).json({ message: "User not found" });
+      res.json({ profileimage: (updatedUser as AuthUserDoc).profileimage });
+    } catch (error: any) {
+      if (error?.issues) {
+        return res.status(400).json({ message: "Validation failed", errors: error.issues });
+      }
+      res.status(400).json({ message: "Invalid input data" });
+    }
+  });
+
   // Update onboarding status
   app.put("/api/auth/onboarding", authenticateToken, async (req: any, res) => {
     try {

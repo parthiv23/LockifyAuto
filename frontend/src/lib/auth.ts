@@ -39,6 +39,22 @@ const AUTH_KEY = "lockify-auth";
 const SESSION_DURATION_MS = 30 * 60 * 1000; // 30 minutes
 const AVATAR_CACHE_PREFIX = "lockify-avatar-";
 
+function readCachedAvatar(username?: string): string | undefined {
+  if (!username) return undefined;
+  try {
+    return localStorage.getItem(AVATAR_CACHE_PREFIX + username) || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeCachedAvatar(username: string | undefined, profileimage: string) {
+  if (!username) return;
+  try {
+    localStorage.setItem(AVATAR_CACHE_PREFIX + username, profileimage);
+  } catch {}
+}
+
 export function useAuth() {
   const [auth, setAuth] = useState<AuthState | null>(() => {
     try {
@@ -140,6 +156,7 @@ export function useAuth() {
       return { ...body, recoveryKey };
     },
     onSuccess: ({ user, token }) => {
+      if (user.profileimage) writeCachedAvatar(user.username, user.profileimage);
       setLoggedIn(user, token);
       // ✅ Vibration feedback on successful login
       VibrateIfEnabled.short();
@@ -155,16 +172,10 @@ export function useAuth() {
     mutationFn: async (token: BiometricToken) => {
       // For biometric token login, we trust the token and create user object
       // In a real app, you'd validate the token with the server
-      let cachedAvatar: string | undefined;
-      try {
-        cachedAvatar = localStorage.getItem(AVATAR_CACHE_PREFIX + token.username) || undefined;
-      } catch {}
-      
-      // Check if this is the default user or a registered user
       return {
         id: token.userId,
         username: token.username,
-        profileimage: cachedAvatar,
+        profileimage: readCachedAvatar(token.username),
         hasCompletedOnboarding: false,
       } as User;
     },
@@ -194,6 +205,7 @@ export function useAuth() {
       return { ...body, recoveryKey };
     },
     onSuccess: ({ user, token }) => {
+      if (user.profileimage) writeCachedAvatar(user.username, user.profileimage);
       setLoggedIn(user, token);
       // Fire-and-forget history logging
       void history
@@ -276,12 +288,11 @@ export function useAuth() {
   const updateProfileImageMutation = useMutation({
     mutationFn: async (profileimage: string) => {
       if (!auth?.user?.id) throw new Error("Missing user id");
-      // Persist locally so it survives logout/login for this browser
-      try {
-        const usernameKey = auth.user.username || "default";
-        localStorage.setItem(AVATAR_CACHE_PREFIX + usernameKey, profileimage);
-      } catch {}
-      const updated: User = { ...auth.user, profileimage };
+      const res = await apiRequest("PUT", "/api/auth/profile-image", { profileimage });
+      const body = (await res.json()) as { profileimage?: string };
+      const nextImage = body.profileimage || profileimage;
+      writeCachedAvatar(auth.user.username, nextImage);
+      const updated: User = { ...auth.user, profileimage: nextImage };
       setLoggedIn(updated, auth.token, { preserveExpiry: true });
       return updated;
     },
