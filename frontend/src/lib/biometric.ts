@@ -32,6 +32,15 @@ export interface BiometricToken {
   token: string;
   createdAt: number;
   expiresAt: number;
+  authToken?: string;
+  hasCompletedOnboarding?: boolean;
+  profileimage?: string;
+}
+
+export interface BiometricSession {
+  authToken?: string;
+  hasCompletedOnboarding?: boolean;
+  profileimage?: string;
 }
 
 export interface BiometricTokenResult {
@@ -210,7 +219,12 @@ export const authenticateBiometric = async (
       console.warn('Failed to retrieve stored biometric credential:', storageError);
     }
 
-    if (!storedCredential || storedCredential.userId !== userId) {
+    if (
+      !storedCredential ||
+      (storedCredential.userId !== userId &&
+        storedCredential.username !== userId &&
+        storedCredential.username !== username)
+    ) {
       return {
         success: false,
         error: 'No biometric credential found for this user'
@@ -285,16 +299,23 @@ export const authenticateBiometric = async (
 /**
  * Check if user has a registered biometric credential
  */
-export const hasBiometricCredential = (userId: string): boolean => {
+export const findBiometricCredential = (userIdOrUsername: string): BiometricCredential | null => {
   try {
     const stored = localStorage.getItem('lumora-biometric-credential');
-    if (!stored) return false;
-    
+    if (!stored) return null;
+
     const credential = JSON.parse(stored) as BiometricCredential;
-    return credential.userId === userId;
+    if (credential.userId === userIdOrUsername || credential.username === userIdOrUsername) {
+      return credential;
+    }
+    return null;
   } catch {
-    return false;
+    return null;
   }
+};
+
+export const hasBiometricCredential = (userId: string): boolean => {
+  return findBiometricCredential(userId) !== null;
 };
 
 /**
@@ -310,17 +331,11 @@ export const removeBiometricCredential = (): void => {
 
 /**
  * Check if biometric authentication should be offered
- * (mobile device + biometric support + HTTPS)
+ * (secure context + platform authenticator)
  */
 export const shouldOfferBiometric = async (): Promise<boolean> => {
   // Must be HTTPS (required for WebAuthn)
   if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-    return false;
-  }
-
-  // Check if mobile device (reuse existing mobile detection)
-  const isMobile = window.innerWidth < 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  if (!isMobile) {
     return false;
   }
 
@@ -335,9 +350,12 @@ export const shouldOfferBiometric = async (): Promise<boolean> => {
  */
 export const generateBiometricToken = async (
   userId: string,
-  username: string
+  username: string,
+  session?: BiometricSession
 ): Promise<BiometricTokenResult> => {
   try {
+    const existing = getBiometricToken();
+    const sameUser = existing?.userId === userId || existing?.username === username;
     // Generate a secure random token
     const tokenBytes = crypto.getRandomValues(new Uint8Array(32));
     const token = btoa(String.fromCharCode(...tokenBytes));
@@ -351,7 +369,10 @@ export const generateBiometricToken = async (
       username,
       token,
       createdAt: now,
-      expiresAt
+      expiresAt,
+      authToken: session?.authToken || (sameUser ? existing?.authToken : undefined),
+      hasCompletedOnboarding: session?.hasCompletedOnboarding ?? (sameUser ? existing?.hasCompletedOnboarding : undefined),
+      profileimage: session?.profileimage || (sameUser ? existing?.profileimage : undefined),
     };
 
     // Store the token securely in localStorage
@@ -449,10 +470,17 @@ export const authenticateWithBiometricToken = async (
     }
 
     // Verify the token matches the user
-    if (token.userId !== userId) {
+    if (token.userId !== userId && token.username !== username && token.username !== userId) {
       return {
         success: false,
         error: 'Biometric token mismatch'
+      };
+    }
+
+    if (!token.authToken) {
+      return {
+        success: false,
+        error: 'Sign in with your password once more so fingerprint can unlock this vault.'
       };
     }
 
