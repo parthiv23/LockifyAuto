@@ -122,6 +122,15 @@ export const onboardingCompleteSchema = z.object({
   hasCompletedOnboarding: z.boolean(),
 });
 
+export const updateProfileImageSchema = z.object({
+  profileimage: z.string()
+    .min(1, "Avatar is required")
+    .refine(
+      (value) => value.includes("/images/avatars/") && !value.includes("avatar.iran.liara.run"),
+      "Invalid avatar",
+    ),
+});
+
 export const insertHistoryEventSchema = createInsertSchema(historyEvents).omit({
   id: true,
   userId: true,
