@@ -87,9 +87,10 @@ export function LumoraAuthLayout({
                 <Link
                   key={tab.mode}
                   href={tab.href}
+                  aria-current={mode === tab.mode ? "page" : undefined}
                   className={`flex min-w-0 flex-1 items-center justify-center rounded-lg px-1.5 py-2 text-center text-[0.65rem] font-semibold sm:px-3 sm:text-xs ${
                     mode === tab.mode
-                      ? "bg-[#084734] text-[#cef17b]"
+                      ? "bg-[#084734] text-[#cef17b] shadow-sm dark:bg-[#cef17b] dark:text-[#084734]"
                       : "text-muted-foreground"
                   }`}
                   data-testid={tab.testId}

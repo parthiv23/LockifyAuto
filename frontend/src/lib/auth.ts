@@ -170,22 +170,26 @@ export function useAuth() {
   // Biometric token login mutation
   const biometricLoginMutation = useMutation({
     mutationFn: async (token: BiometricToken) => {
-      // For biometric token login, we trust the token and create user object
-      // In a real app, you'd validate the token with the server
-      return {
-        id: token.userId,
-        username: token.username,
-        profileimage: readCachedAvatar(token.username),
-        hasCompletedOnboarding: false,
-      } as User;
+      if (!token.authToken) {
+        throw new Error("Sign in with your password once more so fingerprint can unlock this vault.");
+      }
+      return token;
     },
-    onSuccess: (user) => {
-      setLoggedIn(user);
+    onSuccess: (token) => {
+      setLoggedIn(
+        {
+          id: token.userId,
+          username: token.username,
+          profileimage: token.profileimage || readCachedAvatar(token.username),
+          hasCompletedOnboarding: token.hasCompletedOnboarding ?? true,
+        } as User,
+        token.authToken,
+      );
       // ✅ Vibration feedback on successful biometric login
       VibrateIfEnabled.short();
       // Fire-and-forget history logging
       void history
-        .add({ type: "login:biometric", summary: `Biometric login as ${user.username}` })
+        .add({ type: "login:biometric", summary: `Biometric login as ${token.username}` })
         .catch(() => {});
     },
   });
@@ -219,7 +223,10 @@ export function useAuth() {
     // history.add snapshots userId + token synchronously, so clearing
     // the session right after does not drop the in-flight POST.
     void history.add({ type: "logout", summary: "Logged out" }).catch(() => {});
-    clearVault();
+    // Keep the vault key when fingerprint sign-in can restore this session.
+    if (!getBiometricToken()?.authToken) {
+      clearVault();
+    }
     localStorage.removeItem(AUTH_KEY);
     setAuth(null);
     queryClient.clear();
@@ -230,9 +237,13 @@ export function useAuth() {
   };
 
   // Generate biometric token after successful login
-  const generateTokenAfterLogin = async (user: User) => {
+  const generateTokenAfterLogin = async (user: User, authToken?: string) => {
     try {
-      const tokenResult = await generateBiometricToken(user.id, user.username);
+      const tokenResult = await generateBiometricToken(user.id, user.username, {
+        authToken: authToken || auth?.token,
+        hasCompletedOnboarding: user.hasCompletedOnboarding,
+        profileimage: user.profileimage,
+      });
       if (tokenResult.success) {
         console.log('Biometric token generated successfully');
       } else {

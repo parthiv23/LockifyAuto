@@ -210,7 +210,7 @@ export default function Profile() {
         <div className="mx-auto grid max-w-5xl items-start gap-4 md:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)] md:gap-6">
           <section className="overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-sm">
             <div className="flex flex-col items-center border-b border-border/60 px-4 pb-5 pt-6 text-center sm:px-5">
-              <div className="relative h-20 w-20 shrink-0 sm:h-24 sm:w-24">
+              <div className="relative h-[180px] w-[180px] shrink-0 md:h-24 md:w-24">
                 <div className="flex h-full w-full items-center justify-center rounded-full bg-muted">
                   {loading && <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />}
                 </div>
