@@ -29,6 +29,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUserOnboarding(userId: string, hasCompletedOnboarding: boolean): Promise<User | undefined>;
+  updateUserProfileImage(userId: string, profileimage: string): Promise<User | undefined>;
   updateUserVault(userId: string, vault: UserVaultFields): Promise<User | undefined>;
   updateUserPasswordAndWrap(
     userId: string,
@@ -163,6 +164,16 @@ class MongoStorage implements IStorage {
     if (!result) return undefined;
     const doc = ((result as { value?: User }).value ?? result) as User;
     return doc.id ? doc : undefined;
+  }
+
+  async updateUserProfileImage(userId: string, profileimage: string): Promise<User | undefined> {
+    const db = await this.getDb();
+    const result = await db.collection<User>("users").findOneAndUpdate(
+      { id: userId },
+      { $set: { profileimage } },
+      { returnDocument: "after" },
+    );
+    return this.unwrapUser(result);
   }
 
   async updateUserOnboarding(userId: string, hasCompletedOnboarding: boolean): Promise<User | undefined> {
