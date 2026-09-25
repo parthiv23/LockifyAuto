@@ -1,0 +1,8 @@
+title: Lumora
+description: A quiet place for your keys
+# Do not load minima — that theme compiles assets/css/style.scss and breaks
+# when GitHub Pages is pointed at /docs without a Jekyll theme tree.
+theme: null
+plugins: []
+exclude:
+  - README.md
