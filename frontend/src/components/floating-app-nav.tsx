@@ -22,14 +22,14 @@ export function FloatingAppNav({ extra }: FloatingAppNavProps) {
   return (
     <nav
       className={cn(
-        "floating-app-nav hidden md:flex fixed top-4 left-1/2 z-50 items-center",
+        "floating-app-nav hidden md:flex fixed top-4 left-1/2 z-50 min-w-0 items-center",
         "rounded-full border text-foreground",
       )}
       aria-label="Main"
     >
       <button
         type="button"
-        className="nav-brand flex items-center gap-2 rounded-full text-left"
+        className="nav-brand flex shrink-0 items-center gap-2 rounded-full text-left"
         onClick={() => setLocation("/")}
         aria-label="Go to dashboard"
       >
@@ -42,14 +42,14 @@ export function FloatingAppNav({ extra }: FloatingAppNavProps) {
         <h1 className="nav-title text-xl text-foreground">Lumora</h1>
       </button>
 
-      <div className="nav-actions flex items-center gap-1 sm:gap-2">
-        {extra}
+      <div className="nav-actions flex min-w-0 flex-1 items-center justify-end gap-1 overflow-hidden pl-2 sm:gap-2">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">{extra}</div>
 
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-          className="rounded-full p-2"
+          className="shrink-0 rounded-full p-2"
           data-testid="button-theme-toggle"
         >
           {theme === "light" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
@@ -58,10 +58,11 @@ export function FloatingAppNav({ extra }: FloatingAppNavProps) {
         {user && (
           <div
             id="tour-avatar-desktop"
-            className="flex cursor-pointer items-center gap-2 rounded-full pr-1"
+            className="flex min-w-0 max-w-[min(11rem,34vw)] cursor-pointer items-center gap-2 rounded-full pr-1 sm:max-w-[14rem]"
             onClick={() => setLocation("/profile")}
+            title={user.username}
           >
-            <div className="relative h-7 w-7">
+            <div className="relative h-7 w-7 shrink-0">
               {avatarLoading && (
                 <div className="absolute inset-0 flex items-center justify-center rounded-full bg-muted">
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -76,7 +77,7 @@ export function FloatingAppNav({ extra }: FloatingAppNavProps) {
                 onError={() => setAvatarLoading(false)}
               />
             </div>
-            <span className="hidden text-sm text-foreground sm:inline">{user.username}</span>
+            <span className="hidden min-w-0 truncate text-sm text-foreground sm:inline">{user.username}</span>
           </div>
         )}
       </div>

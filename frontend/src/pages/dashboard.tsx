@@ -14,7 +14,7 @@ import { DeleteModal } from "@/components/delete-modal";
 
 import { OnboardingGuide } from "@/components/onboarding-guide";
 import { PasswordGenerator } from "@/components/password-generator";
-import { Plus, Search, Filter, Key, ArrowUpDown, Calendar as CalendarIcon, X, RefreshCcw, Trash2, MoreVertical, ArrowLeft, RefreshCw } from "lucide-react";
+import { Plus, Heart, Search, Filter, Key, ArrowUpDown, Calendar as CalendarIcon, X, RefreshCcw, Trash2, MoreVertical, ArrowLeft, RefreshCw } from "lucide-react";
 import { useLocation } from "wouter";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -614,7 +614,7 @@ export default function Dashboard() {
       {false && <></>}
   
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-8 md:pt-24 pb-40 max-md:pb-96">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-8 md:pt-24 pb-28 max-md:pb-36">
         <div>
         {!isTrashView && !isHistoryView && (
           <>
@@ -1103,7 +1103,8 @@ export default function Dashboard() {
                   {trashedRecords.length === 0 ? (
                     <div className="text-center py-16 text-muted-foreground">No items in Trash</div>
                   ) : (
-                    trashedRecords.map((r) => (
+                    <>
+                    {trashedRecords.map((r) => (
                     <div key={r.id} className="border rounded-md p-3 flex items-center justify-between">
                       <div className="min-w-0">
                         <div className="font-medium truncate flex items-center gap-2">
@@ -1160,7 +1161,9 @@ export default function Dashboard() {
                         </Button>
                       </div>
                     </div>
-                  ))
+                    ))}
+                    <VaultListEndFooter />
+                    </>
                   )}
                 </>
               ) : (
@@ -1216,6 +1219,7 @@ export default function Dashboard() {
                         onToggleStar={toggleStar}
                       />
                     ))}
+                    <VaultListEndFooter />
                   </>
                 )
               )}
@@ -1334,6 +1338,25 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function VaultListEndFooter() {
+  return (
+    <footer
+      className="pointer-events-none select-none px-1 pb-6 pt-32 sm:pb-8 sm:pt-44"
+      data-testid="vault-list-end"
+    >
+      <p className="font-serif text-[clamp(4rem,18vw,6.5rem)] font-medium leading-[0.86] tracking-tight text-foreground/[0.16] dark:text-primary">
+        Keep it
+        <br />
+        quiet.
+      </p>
+      <p className="mt-5 text-sm text-muted-foreground">
+        Made with <Heart className="inline h-4 w-4 fill-red-500 text-red-500" aria-label="love" /><br/>Your keys never leave this device
+      </p>
+ 
+    </footer>
   );
 }
 
