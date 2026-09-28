@@ -24,6 +24,8 @@ import {
   Shield,
   User,
   Archive,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -31,6 +33,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import AvatarPickerDialog from "@/components/avatar-picker-dialog";
 import { OnboardingGuide } from "@/components/onboarding-guide";
 import { FloatingAppNav } from "@/components/floating-app-nav";
+import { useTheme } from "@/components/theme-provider";
 import { VibrationPreference, Vibration } from "@/lib/vibration";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
 import { useBiometric } from "@/hooks/use-biometric";
@@ -47,6 +50,7 @@ export default function Profile() {
   const { user, logout, updateProfileImage, updateOnboardingStatus, changePassword, rotateRecoveryKey } = useAuth();
   const { data: records = [] } = useQuery<PasswordRecord[]>({ queryKey: ["/api/records"] });
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
@@ -429,6 +433,25 @@ export default function Profile() {
                     });
                   }}
                   data-testid="switch-vibration"
+                />
+              </PreferenceRow>
+
+              <PreferenceRow
+                icon={
+                  theme === "light" ? (
+                    <Moon className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Sun className="h-4 w-4 text-muted-foreground" />
+                  )
+                }
+                title="Dark theme"
+                description="Switch between light and dark appearance"
+              >
+                <Switch
+                  checked={theme === "dark"}
+                  onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+                  data-testid="switch-theme"
+                  aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
                 />
               </PreferenceRow>
 
